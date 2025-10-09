@@ -29,7 +29,6 @@ All vailable tasks:
 - [vim_plugins_fcitx](#task-vim_plugins_fcitx)
 - [vim_plugins_matchtag](#task-vim_plugins_matchtag)
 - [vim_plugins_snippets](#task-vim_plugins_snippets)
-- [vim_plugins_ycm](#task-vim_plugins_ycm)
 - [zsh_omz](#task-zsh_omz)
 - [zsh_omz_plugins_fzf](#task-zsh_omz_plugins_fzf)
 - [zsh_omz_plugins_git_diff_so_fancy](#task-zsh_omz_plugins_git_diff_so_fancy)
@@ -347,35 +346,6 @@ You can do a specific task by run
     " group 'snippets'
     Plug 'SirVer/ultisnips'
     Plug 'honza/vim-snippets'
-    ```
-
-- ### Task `vim_plugins_ycm`
-    Requirement(s): `git`, `vim`, `curl`, `python`,
-    [task vim_plugins](#task-vim_plugins)
-
-    Install YouCompleteMe plugin for vim.
-
-    If YouCompleteMe lib files not exist, or you force YouCompleteMe to
-    recompile with `export YCM_COMPILE_FORCE=true`, YouCompleteMe lib files
-    will be compiled automatically.
-
-    Also you can set `YCM_COMPLETER_FLAG` with different language support.
-
-    e.g.
-
-    ```sh
-    YCM_COMPLETER_FLAG="--tern-completer" ./install.sh vim_plugins_ycm
-    ```
-
-    If you want to enable `--tern-completer` support, You may want to have `node`
-    and `npm` installed and `.tern-project` config file in you project or
-    `$HOME` directory.
-
-    ##### Included plugin(s)
-
-    ```viml
-    " group 'youcompleteme'
-    Plug 'Valloric/YouCompleteMe'
     ```
 
 - ### Task `zsh_omz`

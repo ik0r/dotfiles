@@ -512,21 +512,6 @@ if count(g:dotvim_groups, 'snippets')
     let g:UltiSnipsJumpBackwardTrigger="<S-Tab>"
 endif
 
-if count(g:dotvim_groups, 'youcompleteme')
-  " 更强大的补全插件
-  if has('nvim') || has('patch584') || has("gui_macvim")
-    Plug 'Valloric/YouCompleteMe'
-    let g:ycm_key_list_select_completion=['<C-n>', '<Down>']
-    let g:ycm_key_list_previous_completion=['<C-p>', '<Up>']
-    let g:ycm_complete_in_comments = 1  "在注释输入中也能补全
-    let g:ycm_collect_identifiers_from_comments_and_strings = 1   "注释和字符串中的文字也会被收入补全
-    let g:ycm_seed_identifiers_with_syntax=1   "语言关键字补全
-
-    " HACK: when popup menu shows, use enter to confirm select one complete option
-    " imap <expr> <CR> pumvisible() ? "<c-y>" : "<cr>"
-  endif
-endif
-
 " If user have own plugins or configs, load them here
 if filereadable(expand("~/.vimrc.plugins.local"))
   source ~/.vimrc.plugins.local

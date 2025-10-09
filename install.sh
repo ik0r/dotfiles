@@ -770,35 +770,6 @@ function install_vim_plugins_snippets(){
   success "Successfully installed vim-snippets plugins."
 }
 
-function install_vim_plugins_ycm(){
-
-  util_must_vimrc_plugins_exists
-
-  must_program_exists "python"
-
-  step "Installing vim YouCompleteMe plugin ..."
-
-  # check whether have neovim. if have, make sure neovim have python feature support
-  util_ensure_neovim_python_support
-
-  # fetch or update YouCompleteMe
-  sync_repo "https://github.com/Valloric/YouCompleteMe.git" \
-            "$APP_PATH/vim/plugins/YouCompleteMe"
-
-  # Force recompile YouCompleteMe libs
-  # or YouCompleteMe libs not exists
-  # compile libs for YouCompleteMe
-  local ycmd_path="$APP_PATH/vim/plugins/YouCompleteMe/third_party/ycmd"
-  if [[ "$YCM_COMPILE_FORCE" = "true" ]] || ( ! is_file_exists "$ycmd_path/ycm_core.so" ); then
-    info "Compiling YouCompleteMe libs ..."
-    "$APP_PATH/vim/plugins/YouCompleteMe/install.py" $YCM_COMPLETER_FLAG
-  fi;
-
-  util_append_dotvim_group "youcompleteme"
-
-  success "Successfully installed YouCompleteMe plugin."
-}
-
 function install_nvim(){
   must_program_exists "nvim"
 
@@ -1132,9 +1103,6 @@ else
         ;;
       vim_plugins_snippets)
         install_vim_plugins_snippets
-        ;;
-      vim_plugins_ycm)
-        install_vim_plugins_ycm
         ;;
       nvim)
         install_nvim
