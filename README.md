@@ -3,7 +3,7 @@
 ## Installation
 
 ```sh
-git clone --depth 1 https://github.com/Wyntau/dotfiles.git ~/.dotfiles
+git clone --depth 1 https://github.com/ik0r/dotfiles.git ~/.dotfiles
 cd ~/.dotfiles
 ```
 
@@ -445,7 +445,7 @@ You can do a specific task by run
 
 The MIT License (MIT)
 
-Copyright (c) 2013 - present Wyntau wyntau@outlook.com
+Copyright (c) 2013 - present ik0r i@ik0r.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

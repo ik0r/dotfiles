@@ -221,7 +221,7 @@ function install_emacs(){
   step "Installing emacs config ..."
 
   local prompt=false
-  local repo_uri="https://github.com/wyntau/emacs.d.git"
+  local repo_uri="https://github.com/ik0r/emacs.d.git"
 
   if ( is_dir_exists "$HOME/.emacs.d" ); then
     if [[ $repo_uri != `cd $HOME/.emacs.d && git remote get-url origin 2> /dev/null` ]]; then
@@ -261,7 +261,7 @@ function install_emacs_spacemacs(){
 
   local prompt=false
   local repo_spacemacs_uri="https://github.com/syl20bnr/spacemacs.git"
-  local repo_config_uri="https://github.com/wyntau/spacemacs.d.git"
+  local repo_config_uri="https://github.com/ik0r/spacemacs.d.git"
 
   if ( is_dir_exists "$HOME/.emacs.d" ); then
     local exist_repo_uri=`cd $HOME/.emacs.d && git remote get-url origin 2> /dev/null`
