@@ -1,7 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use regex::Regex;
-
 use crate::ui;
 use crate::utils;
 
@@ -10,7 +8,9 @@ mod fonts;
 mod git;
 mod git_tasks;
 mod vim;
+mod vim_tasks;
 mod zsh;
+mod zsh_tasks;
 
 pub struct Context {
   pub app_path: PathBuf,
@@ -41,7 +41,19 @@ impl Context {
   ) -> anyhow::Result<std::process::ExitStatus> {
     if self.dry_run {
       let cmd = format_cmd(program, args, sudo);
-      ui::info(format!("dry-run: {}", cmd).as_str());
+      let mut meta = Vec::new();
+      if let Some(cwd) = cwd {
+        meta.push(format!("cwd={}", cwd.display()));
+      }
+      if !envs.is_empty() {
+        let keys = envs.iter().map(|(k, _)| *k).collect::<Vec<_>>().join(",");
+        meta.push(format!("env={}", keys));
+      }
+      if meta.is_empty() {
+        ui::info(format!("dry-run: {}", cmd).as_str());
+      } else {
+        ui::info(format!("dry-run: {} ({})", cmd, meta.join(" ")).as_str());
+      }
     }
     utils::run_status(program, args, cwd, envs, sudo, self.dry_run)
   }
@@ -171,23 +183,23 @@ static TASKS: &[TaskDef] = &[
   },
   TaskDef {
     name: "vim_rc",
-    run: install_vim_rc,
+    run: vim_tasks::install_vim_rc,
   },
   TaskDef {
     name: "vim_plugins",
-    run: install_vim_plugins,
+    run: vim_tasks::install_vim_plugins,
   },
   TaskDef {
     name: "vim_plugins_fcitx",
-    run: install_vim_plugins_fcitx,
+    run: vim_tasks::install_vim_plugins_fcitx,
   },
   TaskDef {
     name: "vim_plugins_matchtag",
-    run: install_vim_plugins_matchtag,
+    run: vim_tasks::install_vim_plugins_matchtag,
   },
   TaskDef {
     name: "vim_plugins_snippets",
-    run: install_vim_plugins_snippets,
+    run: vim_tasks::install_vim_plugins_snippets,
   },
   TaskDef {
     name: "vim_plugins_ycm",
@@ -195,59 +207,59 @@ static TASKS: &[TaskDef] = &[
   },
   TaskDef {
     name: "nvim",
-    run: install_nvim,
+    run: vim_tasks::install_nvim,
   },
   TaskDef {
     name: "zsh_omz",
-    run: install_zsh_omz,
+    run: zsh_tasks::install_zsh_omz,
   },
   TaskDef {
     name: "zsh_omz_cfg",
-    run: install_zsh_omz_cfg,
+    run: zsh_tasks::install_zsh_omz_cfg,
   },
   TaskDef {
     name: "zsh_omz_plugins_git_diff_so_fancy",
-    run: install_zsh_omz_plugins_git_diff_so_fancy,
+    run: zsh_tasks::install_zsh_omz_plugins_git_diff_so_fancy,
   },
   TaskDef {
     name: "zsh_omz_plugins_fzf",
-    run: install_zsh_omz_plugins_fzf,
+    run: zsh_tasks::install_zsh_omz_plugins_fzf,
   },
   TaskDef {
     name: "zsh_omz_plugins_thefuck",
-    run: install_zsh_omz_plugins_thefuck,
+    run: zsh_tasks::install_zsh_omz_plugins_thefuck,
   },
   TaskDef {
     name: "zsh_omz_plugins_zlua",
-    run: install_zsh_omz_plugins_zlua,
+    run: zsh_tasks::install_zsh_omz_plugins_zlua,
   },
   TaskDef {
     name: "zsh_plugins_fasd",
-    run: install_zsh_plugins_fasd,
+    run: zsh_tasks::install_zsh_plugins_fasd,
   },
   TaskDef {
     name: "zsh_zim",
-    run: install_zsh_zim,
+    run: zsh_tasks::install_zsh_zim,
   },
   TaskDef {
     name: "zsh_zim_plugins_fzf",
-    run: install_zsh_zim_plugins_fzf,
+    run: zsh_tasks::install_zsh_zim_plugins_fzf,
   },
   TaskDef {
     name: "zsh_zim_plugins_git_diff_so_fancy",
-    run: install_zsh_zim_plugins_git_diff_so_fancy,
+    run: zsh_tasks::install_zsh_zim_plugins_git_diff_so_fancy,
   },
   TaskDef {
     name: "zsh_zim_plugins_omz_tmux",
-    run: install_zsh_zim_plugins_omz_tmux,
+    run: zsh_tasks::install_zsh_zim_plugins_omz_tmux,
   },
   TaskDef {
     name: "zsh_zim_plugins_pure",
-    run: install_zsh_zim_plugins_pure,
+    run: zsh_tasks::install_zsh_zim_plugins_pure,
   },
   TaskDef {
     name: "zsh_zim_plugins_zlua",
-    run: install_zsh_zim_plugins_zlua,
+    run: zsh_tasks::install_zsh_zim_plugins_zlua,
   },
 ];
 
@@ -387,537 +399,5 @@ fn install_tmux(ctx: &Context) -> anyhow::Result<()> {
   )?;
 
   ui::success("Please run tmux and use prefix-U to update tmux plugins or reload your tmux.conf");
-  Ok(())
-}
-
-fn install_vim_rc(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("vim")?;
-  ui::step("Installing vimrc ...");
-  ctx.symlink(&ctx.app_path.join("vim"), &ctx.home_dir.join(".vim"))?;
-  ctx.symlink(
-    &ctx.app_path.join("vim/vimrc"),
-    &ctx.home_dir.join(".vimrc"),
-  )?;
-  ui::success("Successfully installed vimrc.");
-  ui::success("You can add your own configs to ~/.vimrc.local, vim will source them automatically");
-  Ok(())
-}
-
-fn install_vim_plugins(ctx: &Context) -> anyhow::Result<()> {
-  if !ctx.home_dir.join(".vimrc").exists() {
-    anyhow::bail!("You should complete vim_rc task first");
-  }
-
-  ui::step("Initializing vim-plug");
-  git::sync_repo(
-    "https://github.com/junegunn/vim-plug.git",
-    &ctx.app_path.join("vim/autoload"),
-    None,
-    ctx,
-  )?;
-  ctx.symlink(
-    &ctx.app_path.join("vim/vimrc.plugins"),
-    &ctx.home_dir.join(".vimrc.plugins"),
-  )?;
-
-  let status = ctx.run_status("vim", &["+PlugInstall", "+qall"], None, &[], false)?;
-  if !status.success() {
-    anyhow::bail!("vim PlugInstall failed");
-  }
-
-  if !utils::program_exists("ag") {
-    ui::tip("Maybe you can take full use of this by installing one of (ag)~");
-  }
-
-  ui::success(
-    "You can add your own plugins to ~/.vimrc.plugins.local , vim will source them automatically",
-  );
-  fonts::install_fonts_source_code_pro(ctx)?;
-  ui::tip(
-    "In order to use powerline symbols with airline in vim, please set your terminal to use the font *Source Code Pro*",
-  );
-  Ok(())
-}
-
-fn must_vimrc_plugins(ctx: &Context) -> anyhow::Result<()> {
-  if !ctx.home_dir.join(".vimrc.plugins").exists() {
-    anyhow::bail!("You should complete vim_plugins task first");
-  }
-  Ok(())
-}
-
-fn install_vim_plugins_fcitx(ctx: &Context) -> anyhow::Result<()> {
-  must_vimrc_plugins(ctx)?;
-  ui::step("installing fcitx support plugin for vim ...");
-
-  if utils::is_mac() {
-    let im = std::env::var("FCITX_IM").unwrap_or_default();
-    if im.is_empty() {
-      anyhow::bail!("You must set FCITX_IM to use fcitx-vim-osx plugin");
-    }
-    git::sync_repo(
-      "https://github.com/CodeFalling/fcitx-remote-for-osx.git",
-      &ctx.app_path.join("vim/.cache/fcitx-remote-for-osx"),
-      Some("binary"),
-      ctx,
-    )?;
-    ctx.symlink(
-      &ctx.app_path.join(format!(
-        "vim/.cache/fcitx-remote-for-osx/fcitx-remote-{}",
-        im
-      )),
-      Path::new("/usr/local/bin/fcitx-remote"),
-    )?;
-  }
-
-  vim::append_dotvim_group("fcitx", ctx)?;
-  let status = ctx.run_status("vim", &["+PlugInstall", "+qall"], None, &[], false)?;
-  if !status.success() {
-    anyhow::bail!("vim PlugInstall failed");
-  }
-  ui::success("Successfully installed fcitx support plugin.");
-  Ok(())
-}
-
-fn install_vim_plugins_matchtag(ctx: &Context) -> anyhow::Result<()> {
-  must_vimrc_plugins(ctx)?;
-  utils::must_program("python")?;
-  ui::step("Installing vim MatchTagAlways plugin ...");
-
-  vim::ensure_neovim_python_support(ctx)?;
-  vim::append_dotvim_group("matchtag", ctx)?;
-
-  let status = ctx.run_status("vim", &["+PlugInstall", "+qall"], None, &[], false)?;
-  if !status.success() {
-    anyhow::bail!("vim PlugInstall failed");
-  }
-  ui::success("Successfully installed MatchTagAlways plugins.");
-  Ok(())
-}
-
-fn install_vim_plugins_snippets(ctx: &Context) -> anyhow::Result<()> {
-  must_vimrc_plugins(ctx)?;
-  utils::must_program("python")?;
-  ui::step("Installing vim snippets plugin ...");
-
-  vim::ensure_neovim_python_support(ctx)?;
-  vim::append_dotvim_group("snippets", ctx)?;
-
-  let status = ctx.run_status("vim", &["+PlugInstall", "+qall"], None, &[], false)?;
-  if !status.success() {
-    anyhow::bail!("vim PlugInstall failed");
-  }
-  ui::success("Successfully installed vim-snippets plugins.");
-  Ok(())
-}
-
-fn install_nvim(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("nvim")?;
-  ui::step("Installing nvim ...");
-
-  ctx.symlink(
-    &ctx.app_path.join("nvim"),
-    &ctx.home_dir.join(".config/nvim"),
-  )?;
-
-  let status = ctx.run_status(
-    "nvim",
-    &["--headless", "+Lazy! sync", "+qa"],
-    None,
-    &[],
-    false,
-  )?;
-  if !status.success() {
-    anyhow::bail!("nvim lazy sync failed");
-  }
-
-  ui::success("Successfully installed nvim");
-  Ok(())
-}
-
-fn install_zsh_omz(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("zsh")?;
-  ui::step("Installing oh-my-zsh for zsh ...");
-
-  git::sync_repo(
-    "https://github.com/ohmyzsh/ohmyzsh.git",
-    &ctx.app_path.join("zsh/.cache/ohmyzsh"),
-    None,
-    ctx,
-  )?;
-  git::sync_repo(
-    "https://github.com/zsh-users/zsh-syntax-highlighting.git",
-    &ctx
-      .app_path
-      .join("zsh/.cache/ohmyzsh/custom/plugins/zsh-syntax-highlighting"),
-    None,
-    ctx,
-  )?;
-  git::sync_repo(
-    "https://github.com/tarruda/zsh-autosuggestions.git",
-    &ctx
-      .app_path
-      .join("zsh/.cache/ohmyzsh/custom/plugins/zsh-autosuggestions"),
-    None,
-    ctx,
-  )?;
-
-  ctx.symlink(
-    &ctx.app_path.join("zsh/.cache/ohmyzsh"),
-    &ctx.home_dir.join(".oh-my-zsh"),
-  )?;
-  ctx.symlink(
-    &ctx.app_path.join("zsh/omz/.zshrc"),
-    &ctx.home_dir.join(".zshrc"),
-  )?;
-
-  zsh::ensure_default_shell_is_zsh(ctx)?;
-
-  ui::success("Successfully installed zsh and oh-my-zsh.");
-  ui::tip("You can add your own configs to ~/.zshrc.local , zsh will source them automatically");
-  ui::success("Please open a new zsh terminal to make configs go into effect.");
-  Ok(())
-}
-
-fn install_zsh_omz_cfg(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("zsh")?;
-  ui::step("Installing omz configs ...");
-  ctx.symlink(
-    &ctx.app_path.join("zsh/omz/.zshrc.local"),
-    &ctx.home_dir.join(".zshrc.local"),
-  )?;
-  ui::success("Successfully installed omz configs");
-  ui::success("Please open a new zsh terminal to make configs go into effect.");
-  Ok(())
-}
-
-fn install_zsh_plugins_fasd(ctx: &Context) -> anyhow::Result<()> {
-  ui::step("Installing fasd plugin for zsh ...");
-  let dir = ctx.app_path.join("zsh/.cache/fasd");
-  git::sync_repo("https://github.com/clvv/fasd.git", &dir, None, ctx)?;
-  let sudo = !utils::is_root();
-  let status = ctx.run_status("make", &["install"], Some(&dir), &[], sudo)?;
-  if !status.success() {
-    anyhow::bail!("make install failed");
-  }
-  ui::success("Successfully installed fasd plugin.");
-  ui::success("Please open a new zsh terminal to make configs go into effect.");
-  Ok(())
-}
-
-fn install_zsh_omz_plugins_git_diff_so_fancy(ctx: &Context) -> anyhow::Result<()> {
-  ui::step("Install git diff-so-fancy plugin for oh-my-zsh ...");
-  let cache_dir = ctx.app_path.join(".cache/diff-so-fancy");
-  git::sync_repo(
-    "https://github.com/so-fancy/diff-so-fancy.git",
-    &cache_dir,
-    None,
-    ctx,
-  )?;
-
-  ctx.symlink(
-    &ctx.app_path.join("git/bin/git-dsf"),
-    &cache_dir.join("git-dsf"),
-  )?;
-  ctx.symlink(
-    &ctx.app_path.join("git/bin/git-dsfc"),
-    &cache_dir.join("git-dsfc"),
-  )?;
-  ctx.symlink(
-    &ctx.app_path.join("git/bin/git-lsp"),
-    &cache_dir.join("git-lsp"),
-  )?;
-
-  ctx.symlink(
-    &cache_dir,
-    &ctx
-      .app_path
-      .join("zsh/.cache/ohmyzsh/custom/plugins/diff-so-fancy"),
-  )?;
-
-  ui::success("Successfully installed git diff-so-fancy for oh-my-zsh.");
-  Ok(())
-}
-
-fn install_zsh_omz_plugins_fzf(ctx: &Context) -> anyhow::Result<()> {
-  ui::step("Installing fzf plugin for oh-my-zsh ...");
-  let dir = ctx.app_path.join("zsh/.cache/fzf");
-  git::sync_repo("https://github.com/junegunn/fzf.git", &dir, None, ctx)?;
-
-  let status = ctx.run_status(
-    dir.join("install").to_string_lossy().as_ref(),
-    &["--bin"],
-    None,
-    &[],
-    false,
-  )?;
-  if !status.success() {
-    anyhow::bail!("fzf install --bin failed");
-  }
-
-  let zshenv = ctx.home_dir.join(".zshenv");
-  let pattern = Regex::new(
-    format!(
-      r#"(?im)^[ \t]*export[ \t]*FZF_BASE="{}"[ \t]*$"#,
-      regex::escape(dir.to_string_lossy().as_ref())
-    )
-    .as_str(),
-  )?;
-  utils::append_line_if_missing(
-    &zshenv,
-    &pattern,
-    format!("export FZF_BASE=\"{}\"", dir.to_string_lossy()).as_str(),
-    ctx.dry_run,
-  )?;
-
-  ui::success("Successfully installed fzf plugin.");
-  Ok(())
-}
-
-fn install_zsh_omz_plugins_thefuck(ctx: &Context) -> anyhow::Result<()> {
-  ui::step("Installing thefuck plugin for oh-my-zsh ...");
-
-  zsh::must_python_pip(ctx)?;
-
-  let pip = if utils::program_exists("pip3") {
-    "pip3"
-  } else if utils::program_exists("pip2") {
-    "pip2"
-  } else {
-    "pip"
-  };
-
-  let status = ctx.run_status(
-    pip,
-    &["install", "--user", "--upgrade", "thefuck"],
-    None,
-    &[],
-    false,
-  )?;
-  if !status.success() {
-    anyhow::bail!("pip install thefuck failed");
-  }
-
-  let plugin_dir = ctx
-    .app_path
-    .join("zsh/.cache/ohmyzsh/custom/plugins/thefuck");
-  if !ctx.dry_run {
-    utils::ensure_dir(&plugin_dir)?;
-    utils::atomic_write_string(
-      plugin_dir.join("thefuck.plugin.zsh").as_path(),
-      r#"eval "$(thefuck --alias)""#,
-    )?;
-  }
-
-  ui::success("Successfully installed thefuck plugin.");
-  ui::success("Please open a new zsh terminal to make configs go into effect.");
-  Ok(())
-}
-
-fn install_zsh_omz_plugins_zlua(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("zsh")?;
-  utils::must_program("lua")?;
-  ui::step("Installing z.lua for oh-my-zsh");
-
-  let dir = ctx.app_path.join("zsh/.cache/z.lua");
-  git::sync_repo("https://github.com/skywind3000/z.lua.git", &dir, None, ctx)?;
-  ctx.symlink(
-    &dir,
-    &ctx.app_path.join("zsh/.cache/ohmyzsh/custom/plugins/z.lua"),
-  )?;
-
-  ui::success("Successfully installed z.lua for oh-my-zsh.");
-  Ok(())
-}
-
-fn install_zsh_zim(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("zsh")?;
-  utils::must_program("curl")?;
-  ui::step("Installing zim for zsh ...");
-
-  let zim_home = ctx.app_path.join("zsh/.cache/zimfw");
-  let zim_home_str = zim_home.to_string_lossy().to_string();
-
-  let url = "https://raw.githubusercontent.com/zimfw/install/master/install.zsh";
-  let tmp = utils::TempFile::new("dotfiles_zimfw_install", ".zsh", !ctx.dry_run)?;
-  let tmp_str = tmp.path().to_string_lossy().to_string();
-
-  let status1 = ctx.run_status(
-    "curl",
-    &["-fsSL", url, "-o", tmp_str.as_str()],
-    None,
-    &[],
-    false,
-  )?;
-  if !status1.success() {
-    anyhow::bail!("download zim install script failed");
-  }
-
-  let status2 = ctx.run_status(
-    "zsh",
-    &[tmp_str.as_str()],
-    None,
-    &[("ZIM_HOME", zim_home_str.as_str())],
-    false,
-  )?;
-  if !status2.success() {
-    anyhow::bail!("zim install script failed");
-  }
-
-  ui::success("Successfully installed zim.");
-  Ok(())
-}
-
-fn install_zsh_zim_plugins_fzf(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("zsh")?;
-  utils::must_program("curl")?;
-
-  ui::step("Install fzf plugin for zim ...");
-
-  let dir = ctx.app_path.join("zsh/.cache/fzf");
-  git::sync_repo("https://github.com/junegunn/fzf.git", &dir, None, ctx)?;
-
-  let status = ctx.run_status(
-    dir.join("install").to_string_lossy().as_ref(),
-    &["--bin"],
-    None,
-    &[],
-    false,
-  )?;
-  if !status.success() {
-    anyhow::bail!("fzf install --bin failed");
-  }
-
-  let zshenv = ctx.home_dir.join(".zshenv");
-  let pattern = Regex::new(
-    format!(
-      r#"(?im)^[ \t]*export[ \t]*FZF_BASE="{}"[ \t]*$"#,
-      regex::escape(dir.to_string_lossy().as_ref())
-    )
-    .as_str(),
-  )?;
-  utils::append_line_if_missing(
-    &zshenv,
-    &pattern,
-    format!("export FZF_BASE=\"{}\"", dir.to_string_lossy()).as_str(),
-    ctx.dry_run,
-  )?;
-
-  let zimrc = ctx.home_dir.join(".zimrc");
-  let zmodule_line = "zmodule ohmyzsh/ohmyzsh --source plugins/fzf/fzf.plugin.zsh";
-  let zim_pattern = Regex::new(
-    r"(?im)^[ \t]*zmodule[ \t]+ohmyzsh/ohmyzsh[ \t]+--source[ \t]+plugins/fzf/fzf\.plugin\.zsh[ \t]*$",
-  )?;
-  utils::append_line_if_missing(&zimrc, &zim_pattern, zmodule_line, ctx.dry_run)?;
-
-  ui::success("Successfully installed fzf for zim.");
-  Ok(())
-}
-
-fn install_zsh_zim_plugins_git_diff_so_fancy(ctx: &Context) -> anyhow::Result<()> {
-  ui::step("Install git diff-so-fancy plugin for zim ...");
-  let cache_dir = ctx.app_path.join(".cache/diff-so-fancy");
-  git::sync_repo(
-    "https://github.com/so-fancy/diff-so-fancy.git",
-    &cache_dir,
-    None,
-    ctx,
-  )?;
-
-  ctx.symlink(
-    &ctx.app_path.join("git/bin/git-dsf"),
-    &cache_dir.join("git-dsf"),
-  )?;
-  ctx.symlink(
-    &ctx.app_path.join("git/bin/git-dsfc"),
-    &cache_dir.join("git-dsfc"),
-  )?;
-  ctx.symlink(
-    &ctx.app_path.join("git/bin/git-lsp"),
-    &cache_dir.join("git-lsp"),
-  )?;
-
-  ctx.symlink(
-    &cache_dir,
-    &ctx.app_path.join("zsh/.cache/zimfw/modules/diff-so-fancy"),
-  )?;
-
-  let zimrc = ctx.home_dir.join(".zimrc");
-  let line = "zmodule so-fancy/diff-so-fancy";
-  let pattern = Regex::new(r"(?im)^[ \t]*zmodule[ \t]+so-fancy/diff-so-fancy[ \t]*$")?;
-  utils::append_line_if_missing(&zimrc, &pattern, line, ctx.dry_run)?;
-
-  ui::success("Successfully installed git diff-so-fancy for zim.");
-  Ok(())
-}
-
-fn install_zsh_zim_plugins_omz_tmux(ctx: &Context) -> anyhow::Result<()> {
-  ui::step("Install tmux plugin for zim ...");
-  utils::must_program("zsh")?;
-  utils::must_program("tmux")?;
-
-  let ohmyzsh_dir = ctx.app_path.join("zsh/.cache/ohmyzsh");
-  git::sync_repo(
-    "https://github.com/ohmyzsh/ohmyzsh.git",
-    &ohmyzsh_dir,
-    None,
-    ctx,
-  )?;
-
-  ctx.symlink(
-    &ohmyzsh_dir,
-    &ctx.app_path.join("zsh/.cache/zimfw/modules/ohmyzsh"),
-  )?;
-
-  let zimrc = ctx.home_dir.join(".zimrc");
-  let line = "zmodule ohmyzsh/ohmyzsh --source plugins/tmux/tmux.plugin.zsh";
-  let pattern = Regex::new(
-    r"(?im)^[ \t]*zmodule[ \t]+ohmyzsh/ohmyzsh[ \t]+--source[ \t]+plugins/tmux/tmux\.plugin\.zsh[ \t]*$",
-  )?;
-  utils::append_line_if_missing(&zimrc, &pattern, line, ctx.dry_run)?;
-
-  ui::success("Successfully installed tmux for zim.");
-  Ok(())
-}
-
-fn install_zsh_zim_plugins_pure(ctx: &Context) -> anyhow::Result<()> {
-  ui::step("Install pure theme for zim ...");
-  let dir = ctx.app_path.join("zsh/.cache/pure");
-  git::sync_repo(
-    "https://github.com/sindresorhus/pure.git",
-    &dir,
-    Some("main"),
-    ctx,
-  )?;
-
-  ctx.symlink(&dir, &ctx.app_path.join("zsh/.cache/zimfw/modules/pure"))?;
-
-  let zimrc = ctx.home_dir.join(".zimrc");
-  let line = "zmodule sindresorhus/pure --source async.zsh --source pure.zsh";
-  let pattern = Regex::new(
-    r"(?im)^[ \t]*zmodule[ \t]+sindresorhus/pure[ \t]+--source[ \t]+async\.zsh[ \t]+--source[ \t]+pure\.zsh[ \t]*$",
-  )?;
-  utils::append_line_if_missing(&zimrc, &pattern, line, ctx.dry_run)?;
-
-  ui::success("Successfully install pure theme for zim.");
-  Ok(())
-}
-
-fn install_zsh_zim_plugins_zlua(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("zsh")?;
-  utils::must_program("lua")?;
-  ui::step("Install z.lua for zim ...");
-
-  let dir = ctx.app_path.join("zsh/.cache/z.lua");
-  git::sync_repo("https://github.com/skywind3000/z.lua.git", &dir, None, ctx)?;
-
-  ctx.symlink(&dir, &ctx.app_path.join("zsh/.cache/zimfw/modules/z.lua"))?;
-
-  let zimrc = ctx.home_dir.join(".zimrc");
-  let line = "zmodule skywind3000/z.lua";
-  let pattern = Regex::new(r"(?im)^[ \t]*zmodule[ \t]+skywind3000/z\.lua[ \t]*$")?;
-  utils::append_line_if_missing(&zimrc, &pattern, line, ctx.dry_run)?;
-
-  ui::success("Successfully install z.lua for zim.");
   Ok(())
 }
