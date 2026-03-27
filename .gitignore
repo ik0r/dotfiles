@@ -2,6 +2,8 @@
 
 .cache
 
+target
+
 vim/plugins
 vim/autoload
 vim/shada

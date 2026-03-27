@@ -1,5 +1,5 @@
 [core]
-	editor = vim
+	editor = nvim
 	quotepath = false # 设为 false 的话，就不会对 0x80 以上的字符进行 quote , 故中文可以正常显示
 [alias]
 
@@ -84,3 +84,20 @@
 	postBuffer = 524288000
 [oh-my-zsh]
 	hide-dirty = 1
+[user]
+	name = 刘文涛
+	email = liuwentao.io@bytedance.com
+[diff]
+	tool = vscode
+[difftool "vscode"]
+	cmd = code --wait --diff \"$LOCAL\" \"$REMOTE\"
+[difftool]
+	prompt = false
+[merge]
+	tool = vscode
+[mergetool "vscode"]
+	cmd = code --wait --merge \"$REMOTE\" \"$LOCAL\" \"$BASE\" \"$MERGED\"
+[mergetool]
+	prompt = false
+[safe]
+	directory = *
