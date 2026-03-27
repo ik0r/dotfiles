@@ -58,7 +58,7 @@ pub fn sync_repo(
     let repo_path_str = repo_path.to_string_lossy().to_string();
     args.push(repo_path_str.as_str());
 
-    let status = utils::run_status("git", &args, None, &[], false, ctx.dry_run)?;
+    let status = ctx.run_status("git", &args, None, &[], false)?;
     if !status.success() {
       anyhow::bail!("git clone failed: {}", repo_uri);
     }
@@ -66,13 +66,12 @@ pub fn sync_repo(
   } else {
     ui::info(format!("Updating {} ...", repo_name).as_str());
     let branch = current_branch(repo_path).unwrap_or_else(|| "HEAD".to_string());
-    let status = utils::run_status(
+    let status = ctx.run_status(
       "git",
       &["pull", "origin", branch.as_str()],
       Some(repo_path),
       &[],
       false,
-      ctx.dry_run,
     )?;
     if !status.success() {
       anyhow::bail!("git pull failed: {}", repo_uri);
@@ -82,13 +81,12 @@ pub fn sync_repo(
 
   if repo_path.join(".gitmodules").is_file() {
     ui::info(format!("Updating {} submodules ...", repo_name).as_str());
-    let status = utils::run_status(
+    let status = ctx.run_status(
       "git",
       &["submodule", "update", "--init", "--recursive"],
       Some(repo_path),
       &[],
       false,
-      ctx.dry_run,
     )?;
     if !status.success() {
       anyhow::bail!("git submodule update failed: {}", repo_uri);

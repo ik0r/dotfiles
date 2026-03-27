@@ -1,6 +1,7 @@
 use clap::Parser;
 use inquire::InquireError;
 
+mod prompt;
 mod tasks;
 mod ui;
 mod utils;

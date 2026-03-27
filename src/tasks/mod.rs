@@ -5,7 +5,10 @@ use regex::Regex;
 use crate::ui;
 use crate::utils;
 
+mod emacs;
+mod fonts;
 mod git;
+mod git_tasks;
 mod vim;
 mod zsh;
 
@@ -26,6 +29,21 @@ impl Context {
       backup,
       jobs: std::cmp::max(1, jobs),
     })
+  }
+
+  pub fn run_status(
+    &self,
+    program: &str,
+    args: &[&str],
+    cwd: Option<&Path>,
+    envs: &[(&str, &str)],
+    sudo: bool,
+  ) -> anyhow::Result<std::process::ExitStatus> {
+    utils::run_status(program, args, cwd, envs, sudo, self.dry_run)
+  }
+
+  pub fn symlink(&self, src: &Path, dst: &Path) -> anyhow::Result<()> {
+    utils::symlink(src, dst, self.backup, self.dry_run)
   }
 }
 
@@ -61,47 +79,47 @@ static TASKS: &[TaskDef] = &[
   },
   TaskDef {
     name: "emacs",
-    run: install_emacs,
+    run: emacs::install_emacs,
   },
   TaskDef {
     name: "emacs_spacemacs",
-    run: install_emacs_spacemacs,
+    run: emacs::install_emacs_spacemacs,
   },
   TaskDef {
     name: "fonts_source_code_pro",
-    run: install_fonts_source_code_pro,
+    run: fonts::install_fonts_source_code_pro,
   },
   TaskDef {
     name: "git_alias",
-    run: install_git_alias,
+    run: git_tasks::install_git_alias,
   },
   TaskDef {
     name: "git_config",
-    run: install_git_config,
+    run: git_tasks::install_git_config,
   },
   TaskDef {
     name: "git_diff_so_fancy",
-    run: install_git_diff_so_fancy,
+    run: git_tasks::install_git_diff_so_fancy,
   },
   TaskDef {
     name: "git_difftool_vscode",
-    run: install_git_difftool_vscode,
+    run: git_tasks::install_git_difftool_vscode,
   },
   TaskDef {
     name: "git_mergetool_vscode",
-    run: install_git_mergetool_vscode,
+    run: git_tasks::install_git_mergetool_vscode,
   },
   TaskDef {
     name: "git_difftool_kaleidoscope",
-    run: install_git_difftool_kaleidoscope,
+    run: git_tasks::install_git_difftool_kaleidoscope,
   },
   TaskDef {
     name: "git_mergetool_kaleidoscope",
-    run: install_git_mergetool_kaleidoscope,
+    run: git_tasks::install_git_mergetool_kaleidoscope,
   },
   TaskDef {
     name: "git_extras",
-    run: install_git_extras,
+    run: git_tasks::install_git_extras,
   },
   TaskDef {
     name: "homebrew",
@@ -198,7 +216,7 @@ fn install_editorconfig(ctx: &Context) -> anyhow::Result<()> {
   let src = ctx.app_path.join("editorconfig/editorconfig");
   let dst = ctx.home_dir.join(".editorconfig");
   ui::info(format!("Linking {} to {}", src.display(), dst.display()).as_str());
-  utils::symlink(&src, &dst, ctx.backup, ctx.dry_run)?;
+  ctx.symlink(&src, &dst)?;
   ui::tip("Maybe you should install editorconfig plugin for vim");
   ui::success("Successfully installed editorconfig.");
   Ok(())
@@ -206,604 +224,6 @@ fn install_editorconfig(ctx: &Context) -> anyhow::Result<()> {
 
 fn install_vim_plugins_ycm(_ctx: &Context) -> anyhow::Result<()> {
   anyhow::bail!("Task vim_plugins_ycm is not implemented")
-}
-
-fn install_emacs(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("emacs")?;
-  ui::step("Installing emacs config ...");
-
-  let repo_uri = "https://github.com/ik0r/emacs.d.git";
-  let emacs_dir = ctx.home_dir.join(".emacs.d");
-  if emacs_dir.is_dir() {
-    let origin = git::get_remote_origin(&emacs_dir).unwrap_or_default();
-    if origin != repo_uri {
-      ui::tip("Your old .emacs.d is not the .emacs.d to be installed.");
-      let override_it = inquire::Confirm::new("Do you want to override your old .emacs.d?")
-        .with_default(true)
-        .prompt()?;
-      if override_it {
-        ui::info("Remove old .emacs.d");
-        if !ctx.dry_run {
-          let _ = std::fs::remove_dir_all(&emacs_dir);
-        }
-      } else {
-        ui::info("Do not override your old .emacs.d. Please remove or backup yourself.");
-        return Ok(());
-      }
-    }
-  }
-
-  git::sync_repo(repo_uri, &emacs_dir, None, ctx)?;
-  ui::success("Successfully installed emacs config.");
-  Ok(())
-}
-
-fn install_emacs_spacemacs(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("emacs")?;
-  ui::step("Installing spacemacs config ...");
-
-  let repo_spacemacs_uri = "https://github.com/syl20bnr/spacemacs.git";
-  let repo_config_uri = "https://github.com/ik0r/spacemacs.d.git";
-  let emacs_dir = ctx.home_dir.join(".emacs.d");
-  if emacs_dir.is_dir() {
-    let origin = git::get_remote_origin(&emacs_dir).unwrap_or_default();
-    let ok = origin == repo_spacemacs_uri || origin == format!("{}.git", repo_spacemacs_uri);
-    if !ok {
-      ui::tip("Your old .emacs.d is not spacemacs repo.");
-      let override_it = inquire::Confirm::new("Do you want to override your old .emacs.d?")
-        .with_default(true)
-        .prompt()?;
-      if override_it {
-        ui::info("Remove old .emacs.d");
-        if !ctx.dry_run {
-          let _ = std::fs::remove_dir_all(&emacs_dir);
-        }
-      } else {
-        ui::info("Do not override your old .emacs.d. Please remove or backup yourself.");
-        return Ok(());
-      }
-    }
-  }
-
-  git::sync_repo(repo_spacemacs_uri, &emacs_dir, Some("develop"), ctx)?;
-  let spacemacs_dir = ctx.home_dir.join(".spacemacs.d");
-  git::sync_repo(repo_config_uri, &spacemacs_dir, None, ctx)?;
-
-  ui::success("Successfully installed spacemacs and config.");
-  install_fonts_source_code_pro(ctx)?;
-  Ok(())
-}
-
-fn install_fonts_source_code_pro(ctx: &Context) -> anyhow::Result<()> {
-  let force = std::env::var("DOT_FORCE_FONTS_INSTALL")
-    .ok()
-    .filter(|v| !v.is_empty());
-  if force.is_none() {
-    let ignore = std::env::var("DOT_IGNORE_FONTS_INSTALL")
-      .ok()
-      .filter(|v| !v.is_empty());
-    if ignore.is_some() {
-      ui::info("Pass installing fonts according to DOT_IGNORE_FONTS");
-      return Ok(());
-    }
-    let ssh = std::env::var("SSH_CONNECTION")
-      .ok()
-      .filter(|v| !v.is_empty());
-    if ssh.is_some() {
-      ui::info("Pass installing fonts according to SSH_CONNECTION");
-      ui::tip("Maybe you should install the font *Source Code Pro* locally.");
-      return Ok(());
-    }
-  }
-
-  if !utils::is_mac() && !utils::is_linux() {
-    anyhow::bail!("This support *Linux* and *Mac* only");
-  }
-
-  utils::must_program("git")?;
-  ui::step("Installing font Source Code Pro ...");
-
-  let cache_dir = ctx.app_path.join(".cache/source-code-pro");
-  git::sync_repo(
-    "https://github.com/adobe-fonts/source-code-pro.git",
-    &cache_dir,
-    Some("release"),
-    ctx,
-  )?;
-
-  let ttf_dir = cache_dir.join("TTF");
-  let fonts_dir = if utils::is_mac() {
-    ctx.home_dir.join("Library/Fonts")
-  } else {
-    ctx.home_dir.join(".fonts")
-  };
-  if !ctx.dry_run {
-    utils::ensure_dir(&fonts_dir)?;
-  }
-
-  for entry in walk_dir_files(&ttf_dir)? {
-    let Some(name) = entry.file_name().map(|s| s.to_string_lossy().to_string()) else {
-      continue;
-    };
-    let lower = name.to_lowercase();
-    let ok = lower.ends_with(".ttf") || lower.ends_with(".otf") || lower.ends_with(".pcf.gz");
-    if ok {
-      utils::copy_file(&entry, &fonts_dir, ctx.dry_run)?;
-    }
-  }
-
-  if utils::program_exists("fc-cache") {
-    let _ = utils::run_status(
-      "fc-cache",
-      &["-f", fonts_dir.to_string_lossy().as_ref()],
-      None,
-      &[],
-      false,
-      ctx.dry_run,
-    )?;
-  }
-
-  ui::success("Successfully installed Source Code Pro font.");
-  Ok(())
-}
-
-fn walk_dir_files(root: &Path) -> anyhow::Result<Vec<PathBuf>> {
-  let mut out = Vec::new();
-  if !root.exists() {
-    return Ok(out);
-  }
-  let mut stack = vec![root.to_path_buf()];
-  while let Some(dir) = stack.pop() {
-    for entry in std::fs::read_dir(&dir)? {
-      let entry = entry?;
-      let path = entry.path();
-      if path.is_dir() {
-        stack.push(path);
-      } else if path.is_file() {
-        out.push(path);
-      }
-    }
-  }
-  Ok(out)
-}
-
-fn install_git_alias(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("git")?;
-  ui::step("Install git alias ...");
-
-  let cache_dir = ctx.app_path.join("git/.cache/gitalias");
-  git::sync_repo(
-    "https://github.com/GitAlias/gitalias.git",
-    &cache_dir,
-    None,
-    ctx,
-  )?;
-
-  let options = vec!["system", "global", "local", "worktree"];
-  let selected = inquire::Select::new("where do you select to install?", options)
-    .with_starting_cursor(0)
-    .prompt()?;
-
-  let include_path = cache_dir.join("gitalias.txt");
-  let include_path_str = include_path.to_string_lossy().to_string();
-
-  match selected {
-    "system" => {
-      let sudo = !utils::is_root();
-      let status = utils::run_status(
-        "git",
-        &[
-          "config",
-          "--system",
-          "include.path",
-          include_path_str.as_str(),
-        ],
-        None,
-        &[],
-        sudo,
-        ctx.dry_run,
-      )?;
-      if !status.success() {
-        anyhow::bail!("git config --system failed");
-      }
-    }
-    "global" => {
-      let status = utils::run_status(
-        "git",
-        &[
-          "config",
-          "--global",
-          "include.path",
-          include_path_str.as_str(),
-        ],
-        None,
-        &[],
-        false,
-        ctx.dry_run,
-      )?;
-      if !status.success() {
-        anyhow::bail!("git config --global failed");
-      }
-    }
-    "local" => {
-      ui::info("run below commands in you git repo");
-      eprintln!();
-      eprintln!(
-        "git config --local include.path {}",
-        include_path.to_string_lossy()
-      );
-      eprintln!();
-    }
-    "worktree" => {
-      ui::info("run below commands in you git repo");
-      eprintln!();
-      eprintln!(
-        "git config --worktree include.path {}",
-        include_path.to_string_lossy()
-      );
-      eprintln!();
-    }
-    _ => {}
-  }
-
-  ui::success("Successfully installed git alias.");
-  Ok(())
-}
-
-fn install_git_config(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("git")?;
-  ui::step("Installing gitconfig ...");
-
-  let src = ctx.app_path.join("git/gitconfig");
-  let dst = ctx.home_dir.join(".gitconfig");
-  ui::info(format!("Linking {} to {}", src.display(), dst.display()).as_str());
-  utils::symlink(&src, &dst, ctx.backup, ctx.dry_run)?;
-
-  ui::info("Now config your name and email for git.");
-
-  let user_now = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
-  let user_name = inquire::Text::new(format!("What's your git username? ({})", user_now).as_str())
-    .with_default(user_now.as_str())
-    .prompt()?;
-  let default_email = format!("{}@example.com", user_name);
-  let user_email =
-    inquire::Text::new(format!("What's your git email? ({})", default_email).as_str())
-      .with_default(default_email.as_str())
-      .prompt()?;
-
-  let status1 = utils::run_status(
-    "git",
-    &["config", "--global", "user.name", user_name.as_str()],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status1.success() {
-    anyhow::bail!("git config user.name failed");
-  }
-  let status2 = utils::run_status(
-    "git",
-    &["config", "--global", "user.email", user_email.as_str()],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status2.success() {
-    anyhow::bail!("git config user.email failed");
-  }
-
-  ui::success("Successfully installed gitconfig.");
-  Ok(())
-}
-
-fn install_git_diff_so_fancy(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("git")?;
-  ui::step("Installing git diff-so-fancy ...");
-
-  let cache_dir = ctx.app_path.join(".cache/diff-so-fancy");
-  git::sync_repo(
-    "https://github.com/so-fancy/diff-so-fancy.git",
-    &cache_dir,
-    None,
-    ctx,
-  )?;
-
-  utils::symlink(
-    &ctx.app_path.join("git/bin/git-dsf"),
-    &cache_dir.join("git-dsf"),
-    ctx.backup,
-    ctx.dry_run,
-  )?;
-  utils::symlink(
-    &ctx.app_path.join("git/bin/git-dsfc"),
-    &cache_dir.join("git-dsfc"),
-    ctx.backup,
-    ctx.dry_run,
-  )?;
-  utils::symlink(
-    &ctx.app_path.join("git/bin/git-lsp"),
-    &cache_dir.join("git-lsp"),
-    ctx.backup,
-    ctx.dry_run,
-  )?;
-
-  ui::success("Successfully installed git diff-so-fancy.");
-  ui::info(format!("Please add '{}' to your PATH.", cache_dir.display()).as_str());
-  Ok(())
-}
-
-fn install_git_difftool_kaleidoscope(ctx: &Context) -> anyhow::Result<()> {
-  if !utils::is_mac() {
-    anyhow::bail!("Only MAC is supported");
-  }
-
-  utils::must_program("git")?;
-  utils::must_program("ksdiff")?;
-  utils::must_file(Path::new(
-    "/Applications/Kaleidoscope.app/Contents/MacOS/Kaleidoscope",
-  ))?;
-
-  ui::step("Config git's difftool to Kaleidoscope ...");
-  ui::info("Config git's difftool to Kaleidoscope");
-
-  let status1 = utils::run_status(
-    "git",
-    &["config", "--global", "diff.tool", "Kaleidoscope"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status1.success() {
-    anyhow::bail!("git config diff.tool failed");
-  }
-  let status2 = utils::run_status(
-    "git",
-    &[
-      "config",
-      "--global",
-      "difftool.Kaleidoscope.cmd",
-      r#"ksdiff --partial-changeset --relative-path "$MERGED" -- "$LOCAL" "$REMOTE""#,
-    ],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status2.success() {
-    anyhow::bail!("git config difftool cmd failed");
-  }
-  let status3 = utils::run_status(
-    "git",
-    &["config", "--global", "difftool.prompt", "false"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status3.success() {
-    anyhow::bail!("git config difftool.prompt failed");
-  }
-
-  ui::success("Successfully config git's difftool");
-  Ok(())
-}
-
-fn install_git_mergetool_kaleidoscope(ctx: &Context) -> anyhow::Result<()> {
-  if !utils::is_mac() {
-    anyhow::bail!("Only MAC is supported");
-  }
-
-  utils::must_program("git")?;
-  utils::must_program("ksdiff")?;
-  utils::must_file(Path::new(
-    "/Applications/Kaleidoscope.app/Contents/MacOS/Kaleidoscope",
-  ))?;
-
-  ui::step("Config git's mergetool to Kaleidoscope ...");
-  ui::info("Config git's mergetool to Kaleidoscope");
-
-  let status1 = utils::run_status(
-    "git",
-    &["config", "--global", "merge.tool", "Kaleidoscope"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status1.success() {
-    anyhow::bail!("git config merge.tool failed");
-  }
-  let status2 = utils::run_status(
-    "git",
-    &[
-      "config",
-      "--global",
-      "mergetool.Kaleidoscope.cmd",
-      r#"ksdiff --merge --output "$MERGED" --base "$BASE" -- "$LOCAL" "$REMOTE""#,
-    ],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status2.success() {
-    anyhow::bail!("git config mergetool cmd failed");
-  }
-  let status3 = utils::run_status(
-    "git",
-    &[
-      "config",
-      "--global",
-      "mergetool.Kaleidoscope.trustExitCode",
-      "true",
-    ],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status3.success() {
-    anyhow::bail!("git config trustExitCode failed");
-  }
-  let status4 = utils::run_status(
-    "git",
-    &["config", "--global", "mergetool.prompt", "false"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status4.success() {
-    anyhow::bail!("git config mergetool.prompt failed");
-  }
-
-  ui::success("Successfully config git's mergetool");
-  Ok(())
-}
-
-fn install_git_difftool_vscode(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("git")?;
-  utils::must_program("code")?;
-
-  ui::step("Config git's difftool to VSCode ...");
-  ui::info("Config git's difftool to VSCode");
-
-  let status1 = utils::run_status(
-    "git",
-    &["config", "--global", "diff.tool", "vscode"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status1.success() {
-    anyhow::bail!("git config diff.tool failed");
-  }
-  let status2 = utils::run_status(
-    "git",
-    &[
-      "config",
-      "--global",
-      "difftool.vscode.cmd",
-      r#"code --wait --diff "$LOCAL" "$REMOTE""#,
-    ],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status2.success() {
-    anyhow::bail!("git config difftool.vscode.cmd failed");
-  }
-  let status3 = utils::run_status(
-    "git",
-    &["config", "--global", "difftool.prompt", "false"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status3.success() {
-    anyhow::bail!("git config difftool.prompt failed");
-  }
-
-  ui::success("Successfully config git's difftool");
-  Ok(())
-}
-
-fn install_git_mergetool_vscode(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("git")?;
-  utils::must_program("code")?;
-
-  ui::step("Config git's mergetool to VSCode ...");
-  ui::info("Config git's mergetool to VSCode");
-
-  let status1 = utils::run_status(
-    "git",
-    &["config", "--global", "merge.tool", "vscode"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status1.success() {
-    anyhow::bail!("git config merge.tool failed");
-  }
-  let status2 = utils::run_status(
-    "git",
-    &[
-      "config",
-      "--global",
-      "mergetool.vscode.cmd",
-      r#"code --wait --merge "$REMOTE" "$LOCAL" "$BASE" "$MERGED""#,
-    ],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status2.success() {
-    anyhow::bail!("git config mergetool.vscode.cmd failed");
-  }
-  let status3 = utils::run_status(
-    "git",
-    &["config", "--global", "mergetool.prompt", "false"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
-  if !status3.success() {
-    anyhow::bail!("git config mergetool.prompt failed");
-  }
-
-  ui::success("Successfully config git's mergetool");
-  Ok(())
-}
-
-fn install_git_extras(ctx: &Context) -> anyhow::Result<()> {
-  utils::must_program("git")?;
-  ui::step("Installing git-extras ...");
-
-  let git_extras_dir = ctx.app_path.join("git/.cache/git-extras");
-  if utils::program_exists("brew") && !git_extras_dir.is_dir() {
-    let status = utils::run_status(
-      "brew",
-      &["install", "git-extras"],
-      None,
-      &[],
-      false,
-      ctx.dry_run,
-    )?;
-    if !status.success() {
-      anyhow::bail!("brew install git-extras failed");
-    }
-  } else {
-    git::sync_repo(
-      "https://github.com/tj/git-extras.git",
-      &git_extras_dir,
-      None,
-      ctx,
-    )?;
-    let sudo = !utils::is_root();
-    let status = utils::run_status(
-      "make",
-      &["install"],
-      Some(&git_extras_dir),
-      &[],
-      sudo,
-      ctx.dry_run,
-    )?;
-    if !status.success() {
-      anyhow::bail!("make install failed");
-    }
-  }
-
-  ui::success("Successfully installed git-extras.");
-  Ok(())
 }
 
 fn install_homebrew(ctx: &Context) -> anyhow::Result<()> {
@@ -817,21 +237,17 @@ fn install_homebrew(ctx: &Context) -> anyhow::Result<()> {
   ui::step("Installing homebrew ...");
 
   let url = "https://raw.githubusercontent.com/Homebrew/install/refs/heads/main/install.sh";
-  let tmp = utils::temp_file_path("dotfiles_homebrew_install", ".sh")?;
-  let tmp_str = tmp.to_string_lossy().to_string();
+  let tmp = utils::TempFile::new("dotfiles_homebrew_install", ".sh", !ctx.dry_run)?;
+  let tmp_str = tmp.path().to_string_lossy().to_string();
 
-  let status1 = utils::run_status(
+  let status1 = ctx.run_status(
     "curl",
     &["-fsSL", url, "-o", tmp_str.as_str()],
     None,
     &[],
     false,
-    ctx.dry_run,
   )?;
   if !status1.success() {
-    if !ctx.dry_run {
-      let _ = std::fs::remove_file(&tmp);
-    }
     anyhow::bail!("download homebrew install script failed");
   }
 
@@ -858,23 +274,9 @@ fn install_homebrew(ctx: &Context) -> anyhow::Result<()> {
     ),
   ];
 
-  let status2 = utils::run_status(
-    "/bin/bash",
-    &[tmp_str.as_str()],
-    None,
-    &envs,
-    false,
-    ctx.dry_run,
-  )?;
+  let status2 = ctx.run_status("/bin/bash", &[tmp_str.as_str()], None, &envs, false)?;
   if !status2.success() {
-    if !ctx.dry_run {
-      let _ = std::fs::remove_file(&tmp);
-    }
     anyhow::bail!("homebrew install script failed");
-  }
-
-  if !ctx.dry_run {
-    let _ = std::fs::remove_file(&tmp);
   }
 
   ui::success("Successfully installed homebrew");
@@ -923,13 +325,12 @@ fn install_tmux(ctx: &Context) -> anyhow::Result<()> {
 
   if utils::is_mac() && !utils::program_exists("reattach-to-user-namespace") {
     if utils::program_exists("brew") {
-      let status = utils::run_status(
+      let status = ctx.run_status(
         "brew",
         &["install", "reattach-to-user-namespace"],
         None,
         &[],
         false,
-        ctx.dry_run,
       )?;
       if !status.success() {
         anyhow::bail!("brew install reattach-to-user-namespace failed");
@@ -939,17 +340,10 @@ fn install_tmux(ctx: &Context) -> anyhow::Result<()> {
     }
   }
 
-  utils::symlink(
-    &ctx.app_path.join("tmux"),
-    &ctx.home_dir.join(".tmux"),
-    ctx.backup,
-    ctx.dry_run,
-  )?;
-  utils::symlink(
+  ctx.symlink(&ctx.app_path.join("tmux"), &ctx.home_dir.join(".tmux"))?;
+  ctx.symlink(
     &ctx.app_path.join("tmux/tmux.conf"),
     &ctx.home_dir.join(".tmux.conf"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
 
   ui::success("Please run tmux and use prefix-U to update tmux plugins or reload your tmux.conf");
@@ -959,17 +353,10 @@ fn install_tmux(ctx: &Context) -> anyhow::Result<()> {
 fn install_vim_rc(ctx: &Context) -> anyhow::Result<()> {
   utils::must_program("vim")?;
   ui::step("Installing vimrc ...");
-  utils::symlink(
-    &ctx.app_path.join("vim"),
-    &ctx.home_dir.join(".vim"),
-    ctx.backup,
-    ctx.dry_run,
-  )?;
-  utils::symlink(
+  ctx.symlink(&ctx.app_path.join("vim"), &ctx.home_dir.join(".vim"))?;
+  ctx.symlink(
     &ctx.app_path.join("vim/vimrc"),
     &ctx.home_dir.join(".vimrc"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
   ui::success("Successfully installed vimrc.");
   ui::success("You can add your own configs to ~/.vimrc.local, vim will source them automatically");
@@ -988,21 +375,12 @@ fn install_vim_plugins(ctx: &Context) -> anyhow::Result<()> {
     None,
     ctx,
   )?;
-  utils::symlink(
+  ctx.symlink(
     &ctx.app_path.join("vim/vimrc.plugins"),
     &ctx.home_dir.join(".vimrc.plugins"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
 
-  let status = utils::run_status(
-    "vim",
-    &["+PlugInstall", "+qall"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
+  let status = ctx.run_status("vim", &["+PlugInstall", "+qall"], None, &[], false)?;
   if !status.success() {
     anyhow::bail!("vim PlugInstall failed");
   }
@@ -1014,7 +392,7 @@ fn install_vim_plugins(ctx: &Context) -> anyhow::Result<()> {
   ui::success(
     "You can add your own plugins to ~/.vimrc.plugins.local , vim will source them automatically",
   );
-  install_fonts_source_code_pro(ctx)?;
+  fonts::install_fonts_source_code_pro(ctx)?;
   ui::tip(
     "In order to use powerline symbols with airline in vim, please set your terminal to use the font *Source Code Pro*",
   );
@@ -1043,26 +421,17 @@ fn install_vim_plugins_fcitx(ctx: &Context) -> anyhow::Result<()> {
       Some("binary"),
       ctx,
     )?;
-    utils::symlink(
+    ctx.symlink(
       &ctx.app_path.join(format!(
         "vim/.cache/fcitx-remote-for-osx/fcitx-remote-{}",
         im
       )),
       Path::new("/usr/local/bin/fcitx-remote"),
-      ctx.backup,
-      ctx.dry_run,
     )?;
   }
 
   vim::append_dotvim_group("fcitx", ctx)?;
-  let status = utils::run_status(
-    "vim",
-    &["+PlugInstall", "+qall"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
+  let status = ctx.run_status("vim", &["+PlugInstall", "+qall"], None, &[], false)?;
   if !status.success() {
     anyhow::bail!("vim PlugInstall failed");
   }
@@ -1078,14 +447,7 @@ fn install_vim_plugins_matchtag(ctx: &Context) -> anyhow::Result<()> {
   vim::ensure_neovim_python_support(ctx)?;
   vim::append_dotvim_group("matchtag", ctx)?;
 
-  let status = utils::run_status(
-    "vim",
-    &["+PlugInstall", "+qall"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
+  let status = ctx.run_status("vim", &["+PlugInstall", "+qall"], None, &[], false)?;
   if !status.success() {
     anyhow::bail!("vim PlugInstall failed");
   }
@@ -1101,14 +463,7 @@ fn install_vim_plugins_snippets(ctx: &Context) -> anyhow::Result<()> {
   vim::ensure_neovim_python_support(ctx)?;
   vim::append_dotvim_group("snippets", ctx)?;
 
-  let status = utils::run_status(
-    "vim",
-    &["+PlugInstall", "+qall"],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
+  let status = ctx.run_status("vim", &["+PlugInstall", "+qall"], None, &[], false)?;
   if !status.success() {
     anyhow::bail!("vim PlugInstall failed");
   }
@@ -1120,20 +475,17 @@ fn install_nvim(ctx: &Context) -> anyhow::Result<()> {
   utils::must_program("nvim")?;
   ui::step("Installing nvim ...");
 
-  utils::symlink(
+  ctx.symlink(
     &ctx.app_path.join("nvim"),
     &ctx.home_dir.join(".config/nvim"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
 
-  let status = utils::run_status(
+  let status = ctx.run_status(
     "nvim",
     &["--headless", "+Lazy! sync", "+qa"],
     None,
     &[],
     false,
-    ctx.dry_run,
   )?;
   if !status.success() {
     anyhow::bail!("nvim lazy sync failed");
@@ -1170,17 +522,13 @@ fn install_zsh_omz(ctx: &Context) -> anyhow::Result<()> {
     ctx,
   )?;
 
-  utils::symlink(
+  ctx.symlink(
     &ctx.app_path.join("zsh/.cache/ohmyzsh"),
     &ctx.home_dir.join(".oh-my-zsh"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
-  utils::symlink(
+  ctx.symlink(
     &ctx.app_path.join("zsh/omz/.zshrc"),
     &ctx.home_dir.join(".zshrc"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
 
   zsh::ensure_default_shell_is_zsh(ctx)?;
@@ -1194,11 +542,9 @@ fn install_zsh_omz(ctx: &Context) -> anyhow::Result<()> {
 fn install_zsh_omz_cfg(ctx: &Context) -> anyhow::Result<()> {
   utils::must_program("zsh")?;
   ui::step("Installing omz configs ...");
-  utils::symlink(
+  ctx.symlink(
     &ctx.app_path.join("zsh/omz/.zshrc.local"),
     &ctx.home_dir.join(".zshrc.local"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
   ui::success("Successfully installed omz configs");
   ui::success("Please open a new zsh terminal to make configs go into effect.");
@@ -1210,7 +556,7 @@ fn install_zsh_plugins_fasd(ctx: &Context) -> anyhow::Result<()> {
   let dir = ctx.app_path.join("zsh/.cache/fasd");
   git::sync_repo("https://github.com/clvv/fasd.git", &dir, None, ctx)?;
   let sudo = !utils::is_root();
-  let status = utils::run_status("make", &["install"], Some(&dir), &[], sudo, ctx.dry_run)?;
+  let status = ctx.run_status("make", &["install"], Some(&dir), &[], sudo)?;
   if !status.success() {
     anyhow::bail!("make install failed");
   }
@@ -1229,32 +575,24 @@ fn install_zsh_omz_plugins_git_diff_so_fancy(ctx: &Context) -> anyhow::Result<()
     ctx,
   )?;
 
-  utils::symlink(
+  ctx.symlink(
     &ctx.app_path.join("git/bin/git-dsf"),
     &cache_dir.join("git-dsf"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
-  utils::symlink(
+  ctx.symlink(
     &ctx.app_path.join("git/bin/git-dsfc"),
     &cache_dir.join("git-dsfc"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
-  utils::symlink(
+  ctx.symlink(
     &ctx.app_path.join("git/bin/git-lsp"),
     &cache_dir.join("git-lsp"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
 
-  utils::symlink(
+  ctx.symlink(
     &cache_dir,
     &ctx
       .app_path
       .join("zsh/.cache/ohmyzsh/custom/plugins/diff-so-fancy"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
 
   ui::success("Successfully installed git diff-so-fancy for oh-my-zsh.");
@@ -1266,13 +604,12 @@ fn install_zsh_omz_plugins_fzf(ctx: &Context) -> anyhow::Result<()> {
   let dir = ctx.app_path.join("zsh/.cache/fzf");
   git::sync_repo("https://github.com/junegunn/fzf.git", &dir, None, ctx)?;
 
-  let status = utils::run_status(
+  let status = ctx.run_status(
     dir.join("install").to_string_lossy().as_ref(),
     &["--bin"],
     None,
     &[],
     false,
-    ctx.dry_run,
   )?;
   if !status.success() {
     anyhow::bail!("fzf install --bin failed");
@@ -1310,13 +647,12 @@ fn install_zsh_omz_plugins_thefuck(ctx: &Context) -> anyhow::Result<()> {
     "pip"
   };
 
-  let status = utils::run_status(
+  let status = ctx.run_status(
     pip,
     &["install", "--user", "--upgrade", "thefuck"],
     None,
     &[],
     false,
-    ctx.dry_run,
   )?;
   if !status.success() {
     anyhow::bail!("pip install thefuck failed");
@@ -1345,11 +681,9 @@ fn install_zsh_omz_plugins_zlua(ctx: &Context) -> anyhow::Result<()> {
 
   let dir = ctx.app_path.join("zsh/.cache/z.lua");
   git::sync_repo("https://github.com/skywind3000/z.lua.git", &dir, None, ctx)?;
-  utils::symlink(
+  ctx.symlink(
     &dir,
     &ctx.app_path.join("zsh/.cache/ohmyzsh/custom/plugins/z.lua"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
 
   ui::success("Successfully installed z.lua for oh-my-zsh.");
@@ -1365,41 +699,29 @@ fn install_zsh_zim(ctx: &Context) -> anyhow::Result<()> {
   let zim_home_str = zim_home.to_string_lossy().to_string();
 
   let url = "https://raw.githubusercontent.com/zimfw/install/master/install.zsh";
-  let tmp = utils::temp_file_path("dotfiles_zimfw_install", ".zsh")?;
-  let tmp_str = tmp.to_string_lossy().to_string();
+  let tmp = utils::TempFile::new("dotfiles_zimfw_install", ".zsh", !ctx.dry_run)?;
+  let tmp_str = tmp.path().to_string_lossy().to_string();
 
-  let status1 = utils::run_status(
+  let status1 = ctx.run_status(
     "curl",
     &["-fsSL", url, "-o", tmp_str.as_str()],
     None,
     &[],
     false,
-    ctx.dry_run,
   )?;
   if !status1.success() {
-    if !ctx.dry_run {
-      let _ = std::fs::remove_file(&tmp);
-    }
     anyhow::bail!("download zim install script failed");
   }
 
-  let status2 = utils::run_status(
+  let status2 = ctx.run_status(
     "zsh",
     &[tmp_str.as_str()],
     None,
     &[("ZIM_HOME", zim_home_str.as_str())],
     false,
-    ctx.dry_run,
   )?;
   if !status2.success() {
-    if !ctx.dry_run {
-      let _ = std::fs::remove_file(&tmp);
-    }
     anyhow::bail!("zim install script failed");
-  }
-
-  if !ctx.dry_run {
-    let _ = std::fs::remove_file(&tmp);
   }
 
   ui::success("Successfully installed zim.");
@@ -1415,13 +737,12 @@ fn install_zsh_zim_plugins_fzf(ctx: &Context) -> anyhow::Result<()> {
   let dir = ctx.app_path.join("zsh/.cache/fzf");
   git::sync_repo("https://github.com/junegunn/fzf.git", &dir, None, ctx)?;
 
-  let status = utils::run_status(
+  let status = ctx.run_status(
     dir.join("install").to_string_lossy().as_ref(),
     &["--bin"],
     None,
     &[],
     false,
-    ctx.dry_run,
   )?;
   if !status.success() {
     anyhow::bail!("fzf install --bin failed");
@@ -1463,30 +784,22 @@ fn install_zsh_zim_plugins_git_diff_so_fancy(ctx: &Context) -> anyhow::Result<()
     ctx,
   )?;
 
-  utils::symlink(
+  ctx.symlink(
     &ctx.app_path.join("git/bin/git-dsf"),
     &cache_dir.join("git-dsf"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
-  utils::symlink(
+  ctx.symlink(
     &ctx.app_path.join("git/bin/git-dsfc"),
     &cache_dir.join("git-dsfc"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
-  utils::symlink(
+  ctx.symlink(
     &ctx.app_path.join("git/bin/git-lsp"),
     &cache_dir.join("git-lsp"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
 
-  utils::symlink(
+  ctx.symlink(
     &cache_dir,
     &ctx.app_path.join("zsh/.cache/zimfw/modules/diff-so-fancy"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
 
   let zimrc = ctx.home_dir.join(".zimrc");
@@ -1511,11 +824,9 @@ fn install_zsh_zim_plugins_omz_tmux(ctx: &Context) -> anyhow::Result<()> {
     ctx,
   )?;
 
-  utils::symlink(
+  ctx.symlink(
     &ohmyzsh_dir,
     &ctx.app_path.join("zsh/.cache/zimfw/modules/ohmyzsh"),
-    ctx.backup,
-    ctx.dry_run,
   )?;
 
   let zimrc = ctx.home_dir.join(".zimrc");
@@ -1539,12 +850,7 @@ fn install_zsh_zim_plugins_pure(ctx: &Context) -> anyhow::Result<()> {
     ctx,
   )?;
 
-  utils::symlink(
-    &dir,
-    &ctx.app_path.join("zsh/.cache/zimfw/modules/pure"),
-    ctx.backup,
-    ctx.dry_run,
-  )?;
+  ctx.symlink(&dir, &ctx.app_path.join("zsh/.cache/zimfw/modules/pure"))?;
 
   let zimrc = ctx.home_dir.join(".zimrc");
   let line = "zmodule sindresorhus/pure --source async.zsh --source pure.zsh";
@@ -1565,12 +871,7 @@ fn install_zsh_zim_plugins_zlua(ctx: &Context) -> anyhow::Result<()> {
   let dir = ctx.app_path.join("zsh/.cache/z.lua");
   git::sync_repo("https://github.com/skywind3000/z.lua.git", &dir, None, ctx)?;
 
-  utils::symlink(
-    &dir,
-    &ctx.app_path.join("zsh/.cache/zimfw/modules/z.lua"),
-    ctx.backup,
-    ctx.dry_run,
-  )?;
+  ctx.symlink(&dir, &ctx.app_path.join("zsh/.cache/zimfw/modules/z.lua"))?;
 
   let zimrc = ctx.home_dir.join(".zimrc");
   let line = "zmodule skywind3000/z.lua";

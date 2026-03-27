@@ -245,6 +245,33 @@ pub fn temp_file_path(prefix: &str, suffix: &str) -> anyhow::Result<PathBuf> {
   Ok(std::env::temp_dir().join(format!("{}_{}_{}{}", prefix, pid, ts, suffix)))
 }
 
+pub struct TempFile {
+  path: PathBuf,
+  enabled: bool,
+}
+
+impl TempFile {
+  pub fn new(prefix: &str, suffix: &str, enabled: bool) -> anyhow::Result<Self> {
+    Ok(Self {
+      path: temp_file_path(prefix, suffix)?,
+      enabled,
+    })
+  }
+
+  pub fn path(&self) -> &Path {
+    self.path.as_path()
+  }
+}
+
+impl Drop for TempFile {
+  fn drop(&mut self) {
+    if !self.enabled {
+      return;
+    }
+    let _ = fs::remove_file(&self.path);
+  }
+}
+
 pub fn atomic_write_string(path: &Path, content: &str) -> anyhow::Result<()> {
   atomic_write(path, content.as_bytes())
 }
