@@ -34,94 +34,164 @@ pub fn print_usage() {
   eprintln!("Usage: install <task>[ taskFoo taskBar ...]");
   eprintln!();
   eprintln!("Tasks:");
-  for name in task_names() {
-    eprintln!("    - {}", name);
+  for task in TASKS {
+    eprintln!("    - {}", task.name);
   }
   eprintln!();
 }
 
 pub fn run_task(task: &str, ctx: &Context) -> anyhow::Result<()> {
-  match task {
-    "editorconfig" => install_editorconfig(ctx),
-    "emacs" => install_emacs(ctx),
-    "emacs_spacemacs" => install_emacs_spacemacs(ctx),
-    "fonts_source_code_pro" => install_fonts_source_code_pro(ctx),
-    "git_alias" => install_git_alias(ctx),
-    "git_config" => install_git_config(ctx),
-    "git_diff_so_fancy" => install_git_diff_so_fancy(ctx),
-    "git_difftool_vscode" => install_git_difftool_vscode(ctx),
-    "git_mergetool_vscode" => install_git_mergetool_vscode(ctx),
-    "git_difftool_kaleidoscope" => install_git_difftool_kaleidoscope(ctx),
-    "git_mergetool_kaleidoscope" => install_git_mergetool_kaleidoscope(ctx),
-    "git_extras" => install_git_extras(ctx),
-    "homebrew" => install_homebrew(ctx),
-    "tmux" => install_tmux(ctx),
-    "vim_rc" => install_vim_rc(ctx),
-    "vim_plugins" => install_vim_plugins(ctx),
-    "vim_plugins_fcitx" => install_vim_plugins_fcitx(ctx),
-    "vim_plugins_matchtag" => install_vim_plugins_matchtag(ctx),
-    "vim_plugins_snippets" => install_vim_plugins_snippets(ctx),
-    "vim_plugins_ycm" => anyhow::bail!("Task vim_plugins_ycm is not implemented"),
-    "nvim" => install_nvim(ctx),
-    "zsh_omz" => install_zsh_omz(ctx),
-    "zsh_omz_cfg" => install_zsh_omz_cfg(ctx),
-    "zsh_omz_plugins_git_diff_so_fancy" => install_zsh_omz_plugins_git_diff_so_fancy(ctx),
-    "zsh_omz_plugins_fzf" => install_zsh_omz_plugins_fzf(ctx),
-    "zsh_omz_plugins_thefuck" => install_zsh_omz_plugins_thefuck(ctx),
-    "zsh_omz_plugins_zlua" => install_zsh_omz_plugins_zlua(ctx),
-    "zsh_plugins_fasd" => install_zsh_plugins_fasd(ctx),
-    "zsh_zim" => install_zsh_zim(ctx),
-    "zsh_zim_plugins_fzf" => install_zsh_zim_plugins_fzf(ctx),
-    "zsh_zim_plugins_git_diff_so_fancy" => install_zsh_zim_plugins_git_diff_so_fancy(ctx),
-    "zsh_zim_plugins_omz_tmux" => install_zsh_zim_plugins_omz_tmux(ctx),
-    "zsh_zim_plugins_pure" => install_zsh_zim_plugins_pure(ctx),
-    "zsh_zim_plugins_zlua" => install_zsh_zim_plugins_zlua(ctx),
-    _ => {
-      ui::error(format!("Invalid params {}", task).as_str());
-      print_usage();
-      Ok(())
-    }
-  }
+  let Some(task_def) = TASKS.iter().find(|t| t.name == task) else {
+    ui::error(format!("Invalid params {}", task).as_str());
+    print_usage();
+    return Ok(());
+  };
+  (task_def.run)(ctx)
 }
 
-fn task_names() -> Vec<&'static str> {
-  vec![
-    "editorconfig",
-    "emacs",
-    "emacs_spacemacs",
-    "fonts_source_code_pro",
-    "git_alias",
-    "git_config",
-    "git_diff_so_fancy",
-    "git_difftool_vscode",
-    "git_mergetool_vscode",
-    "git_difftool_kaleidoscope",
-    "git_mergetool_kaleidoscope",
-    "git_extras",
-    "homebrew",
-    "tmux",
-    "vim_rc",
-    "vim_plugins",
-    "vim_plugins_fcitx",
-    "vim_plugins_matchtag",
-    "vim_plugins_snippets",
-    "vim_plugins_ycm",
-    "nvim",
-    "zsh_omz",
-    "zsh_omz_cfg",
-    "zsh_omz_plugins_git_diff_so_fancy",
-    "zsh_omz_plugins_fzf",
-    "zsh_omz_plugins_thefuck",
-    "zsh_omz_plugins_zlua",
-    "zsh_plugins_fasd",
-    "zsh_zim",
-    "zsh_zim_plugins_fzf",
-    "zsh_zim_plugins_git_diff_so_fancy",
-    "zsh_zim_plugins_omz_tmux",
-    "zsh_zim_plugins_pure",
-    "zsh_zim_plugins_zlua",
-  ]
+struct TaskDef {
+  name: &'static str,
+  run: fn(&Context) -> anyhow::Result<()>,
 }
+
+static TASKS: &[TaskDef] = &[
+  TaskDef {
+    name: "editorconfig",
+    run: install_editorconfig,
+  },
+  TaskDef {
+    name: "emacs",
+    run: install_emacs,
+  },
+  TaskDef {
+    name: "emacs_spacemacs",
+    run: install_emacs_spacemacs,
+  },
+  TaskDef {
+    name: "fonts_source_code_pro",
+    run: install_fonts_source_code_pro,
+  },
+  TaskDef {
+    name: "git_alias",
+    run: install_git_alias,
+  },
+  TaskDef {
+    name: "git_config",
+    run: install_git_config,
+  },
+  TaskDef {
+    name: "git_diff_so_fancy",
+    run: install_git_diff_so_fancy,
+  },
+  TaskDef {
+    name: "git_difftool_vscode",
+    run: install_git_difftool_vscode,
+  },
+  TaskDef {
+    name: "git_mergetool_vscode",
+    run: install_git_mergetool_vscode,
+  },
+  TaskDef {
+    name: "git_difftool_kaleidoscope",
+    run: install_git_difftool_kaleidoscope,
+  },
+  TaskDef {
+    name: "git_mergetool_kaleidoscope",
+    run: install_git_mergetool_kaleidoscope,
+  },
+  TaskDef {
+    name: "git_extras",
+    run: install_git_extras,
+  },
+  TaskDef {
+    name: "homebrew",
+    run: install_homebrew,
+  },
+  TaskDef {
+    name: "tmux",
+    run: install_tmux,
+  },
+  TaskDef {
+    name: "vim_rc",
+    run: install_vim_rc,
+  },
+  TaskDef {
+    name: "vim_plugins",
+    run: install_vim_plugins,
+  },
+  TaskDef {
+    name: "vim_plugins_fcitx",
+    run: install_vim_plugins_fcitx,
+  },
+  TaskDef {
+    name: "vim_plugins_matchtag",
+    run: install_vim_plugins_matchtag,
+  },
+  TaskDef {
+    name: "vim_plugins_snippets",
+    run: install_vim_plugins_snippets,
+  },
+  TaskDef {
+    name: "vim_plugins_ycm",
+    run: install_vim_plugins_ycm,
+  },
+  TaskDef {
+    name: "nvim",
+    run: install_nvim,
+  },
+  TaskDef {
+    name: "zsh_omz",
+    run: install_zsh_omz,
+  },
+  TaskDef {
+    name: "zsh_omz_cfg",
+    run: install_zsh_omz_cfg,
+  },
+  TaskDef {
+    name: "zsh_omz_plugins_git_diff_so_fancy",
+    run: install_zsh_omz_plugins_git_diff_so_fancy,
+  },
+  TaskDef {
+    name: "zsh_omz_plugins_fzf",
+    run: install_zsh_omz_plugins_fzf,
+  },
+  TaskDef {
+    name: "zsh_omz_plugins_thefuck",
+    run: install_zsh_omz_plugins_thefuck,
+  },
+  TaskDef {
+    name: "zsh_omz_plugins_zlua",
+    run: install_zsh_omz_plugins_zlua,
+  },
+  TaskDef {
+    name: "zsh_plugins_fasd",
+    run: install_zsh_plugins_fasd,
+  },
+  TaskDef {
+    name: "zsh_zim",
+    run: install_zsh_zim,
+  },
+  TaskDef {
+    name: "zsh_zim_plugins_fzf",
+    run: install_zsh_zim_plugins_fzf,
+  },
+  TaskDef {
+    name: "zsh_zim_plugins_git_diff_so_fancy",
+    run: install_zsh_zim_plugins_git_diff_so_fancy,
+  },
+  TaskDef {
+    name: "zsh_zim_plugins_omz_tmux",
+    run: install_zsh_zim_plugins_omz_tmux,
+  },
+  TaskDef {
+    name: "zsh_zim_plugins_pure",
+    run: install_zsh_zim_plugins_pure,
+  },
+  TaskDef {
+    name: "zsh_zim_plugins_zlua",
+    run: install_zsh_zim_plugins_zlua,
+  },
+];
 
 fn install_editorconfig(ctx: &Context) -> anyhow::Result<()> {
   ui::step("Installing editorconfig ...");
@@ -132,6 +202,10 @@ fn install_editorconfig(ctx: &Context) -> anyhow::Result<()> {
   ui::tip("Maybe you should install editorconfig plugin for vim");
   ui::success("Successfully installed editorconfig.");
   Ok(())
+}
+
+fn install_vim_plugins_ycm(_ctx: &Context) -> anyhow::Result<()> {
+  anyhow::bail!("Task vim_plugins_ycm is not implemented")
 }
 
 fn install_emacs(ctx: &Context) -> anyhow::Result<()> {
@@ -146,8 +220,7 @@ fn install_emacs(ctx: &Context) -> anyhow::Result<()> {
       ui::tip("Your old .emacs.d is not the .emacs.d to be installed.");
       let override_it = inquire::Confirm::new("Do you want to override your old .emacs.d?")
         .with_default(true)
-        .prompt()
-        .unwrap();
+        .prompt()?;
       if override_it {
         ui::info("Remove old .emacs.d");
         if !ctx.dry_run {
@@ -179,8 +252,7 @@ fn install_emacs_spacemacs(ctx: &Context) -> anyhow::Result<()> {
       ui::tip("Your old .emacs.d is not spacemacs repo.");
       let override_it = inquire::Confirm::new("Do you want to override your old .emacs.d?")
         .with_default(true)
-        .prompt()
-        .unwrap();
+        .prompt()?;
       if override_it {
         ui::info("Remove old .emacs.d");
         if !ctx.dry_run {
@@ -250,7 +322,9 @@ fn install_fonts_source_code_pro(ctx: &Context) -> anyhow::Result<()> {
   }
 
   for entry in walk_dir_files(&ttf_dir)? {
-    let name = entry.file_name().unwrap().to_string_lossy().to_string();
+    let Some(name) = entry.file_name().map(|s| s.to_string_lossy().to_string()) else {
+      continue;
+    };
     let lower = name.to_lowercase();
     let ok = lower.ends_with(".ttf") || lower.ends_with(".otf") || lower.ends_with(".pcf.gz");
     if ok {
@@ -308,8 +382,7 @@ fn install_git_alias(ctx: &Context) -> anyhow::Result<()> {
   let options = vec!["system", "global", "local", "worktree"];
   let selected = inquire::Select::new("where do you select to install?", options)
     .with_starting_cursor(0)
-    .prompt()
-    .unwrap();
+    .prompt()?;
 
   let include_path = cache_dir.join("gitalias.txt");
   let include_path_str = include_path.to_string_lossy().to_string();
@@ -391,14 +464,12 @@ fn install_git_config(ctx: &Context) -> anyhow::Result<()> {
   let user_now = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
   let user_name = inquire::Text::new(format!("What's your git username? ({})", user_now).as_str())
     .with_default(user_now.as_str())
-    .prompt()
-    .unwrap();
+    .prompt()?;
   let default_email = format!("{}@example.com", user_name);
   let user_email =
     inquire::Text::new(format!("What's your git email? ({})", default_email).as_str())
       .with_default(default_email.as_str())
-      .prompt()
-      .unwrap();
+      .prompt()?;
 
   let status1 = utils::run_status(
     "git",
@@ -746,7 +817,7 @@ fn install_homebrew(ctx: &Context) -> anyhow::Result<()> {
   ui::step("Installing homebrew ...");
 
   let url = "https://raw.githubusercontent.com/Homebrew/install/refs/heads/main/install.sh";
-  let tmp = std::env::temp_dir().join("dotfiles_homebrew_install.sh");
+  let tmp = utils::temp_file_path("dotfiles_homebrew_install", ".sh")?;
   let tmp_str = tmp.to_string_lossy().to_string();
 
   let status1 = utils::run_status(
@@ -758,6 +829,9 @@ fn install_homebrew(ctx: &Context) -> anyhow::Result<()> {
     ctx.dry_run,
   )?;
   if !status1.success() {
+    if !ctx.dry_run {
+      let _ = std::fs::remove_file(&tmp);
+    }
     anyhow::bail!("download homebrew install script failed");
   }
 
@@ -793,7 +867,14 @@ fn install_homebrew(ctx: &Context) -> anyhow::Result<()> {
     ctx.dry_run,
   )?;
   if !status2.success() {
+    if !ctx.dry_run {
+      let _ = std::fs::remove_file(&tmp);
+    }
     anyhow::bail!("homebrew install script failed");
+  }
+
+  if !ctx.dry_run {
+    let _ = std::fs::remove_file(&tmp);
   }
 
   ui::success("Successfully installed homebrew");
@@ -1246,8 +1327,8 @@ fn install_zsh_omz_plugins_thefuck(ctx: &Context) -> anyhow::Result<()> {
     .join("zsh/.cache/ohmyzsh/custom/plugins/thefuck");
   if !ctx.dry_run {
     utils::ensure_dir(&plugin_dir)?;
-    std::fs::write(
-      plugin_dir.join("thefuck.plugin.zsh"),
+    utils::atomic_write_string(
+      plugin_dir.join("thefuck.plugin.zsh").as_path(),
       r#"eval "$(thefuck --alias)""#,
     )?;
   }
@@ -1284,7 +1365,7 @@ fn install_zsh_zim(ctx: &Context) -> anyhow::Result<()> {
   let zim_home_str = zim_home.to_string_lossy().to_string();
 
   let url = "https://raw.githubusercontent.com/zimfw/install/master/install.zsh";
-  let tmp = std::env::temp_dir().join("dotfiles_zimfw_install.zsh");
+  let tmp = utils::temp_file_path("dotfiles_zimfw_install", ".zsh")?;
   let tmp_str = tmp.to_string_lossy().to_string();
 
   let status1 = utils::run_status(
@@ -1296,6 +1377,9 @@ fn install_zsh_zim(ctx: &Context) -> anyhow::Result<()> {
     ctx.dry_run,
   )?;
   if !status1.success() {
+    if !ctx.dry_run {
+      let _ = std::fs::remove_file(&tmp);
+    }
     anyhow::bail!("download zim install script failed");
   }
 
@@ -1308,7 +1392,14 @@ fn install_zsh_zim(ctx: &Context) -> anyhow::Result<()> {
     ctx.dry_run,
   )?;
   if !status2.success() {
+    if !ctx.dry_run {
+      let _ = std::fs::remove_file(&tmp);
+    }
     anyhow::bail!("zim install script failed");
+  }
+
+  if !ctx.dry_run {
+    let _ = std::fs::remove_file(&tmp);
   }
 
   ui::success("Successfully installed zim.");

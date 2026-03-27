@@ -1,4 +1,5 @@
 use clap::Parser;
+use inquire::InquireError;
 
 mod tasks;
 mod ui;
@@ -25,6 +26,10 @@ pub struct Cli {
 
 fn main() {
   if let Err(err) = run() {
+    if is_user_cancelled(&err) {
+      ui::tip("Cancelled.");
+      std::process::exit(130);
+    }
     ui::error(format!("{}", err).as_str());
     std::process::exit(1);
   }
@@ -50,4 +55,14 @@ fn run() -> anyhow::Result<()> {
   }
 
   Ok(())
+}
+
+fn is_user_cancelled(err: &anyhow::Error) -> bool {
+  let Some(inquire_err) = err.downcast_ref::<InquireError>() else {
+    return false;
+  };
+  matches!(
+    inquire_err,
+    InquireError::OperationCanceled | InquireError::OperationInterrupted
+  )
 }

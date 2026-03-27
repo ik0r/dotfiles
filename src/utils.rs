@@ -2,6 +2,7 @@ use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::io;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Output, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -238,6 +239,41 @@ pub fn read_to_string_if_exists(path: &Path) -> anyhow::Result<String> {
   Ok(fs::read_to_string(path)?)
 }
 
+pub fn temp_file_path(prefix: &str, suffix: &str) -> anyhow::Result<PathBuf> {
+  let pid = std::process::id();
+  let ts = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+  Ok(std::env::temp_dir().join(format!("{}_{}_{}{}", prefix, pid, ts, suffix)))
+}
+
+pub fn atomic_write_string(path: &Path, content: &str) -> anyhow::Result<()> {
+  atomic_write(path, content.as_bytes())
+}
+
+pub fn atomic_write(path: &Path, content: &[u8]) -> anyhow::Result<()> {
+  let parent = path.parent().unwrap_or(Path::new("."));
+  ensure_dir(parent)?;
+
+  let file_name = path
+    .file_name()
+    .unwrap_or_else(|| OsStr::new("file"))
+    .to_string_lossy()
+    .to_string();
+  let pid = std::process::id();
+  let ts = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis();
+  let tmp_path = parent.join(format!(".{}.tmp.{}.{}", file_name, pid, ts));
+
+  let mut f = fs::OpenOptions::new()
+    .write(true)
+    .create_new(true)
+    .open(&tmp_path)?;
+  f.write_all(content)?;
+  f.flush()?;
+
+  let _ = fs::remove_file(path);
+  fs::rename(&tmp_path, path)?;
+  Ok(())
+}
+
 pub fn append_line_if_missing(
   path: &Path,
   pattern: &regex::Regex,
@@ -263,7 +299,7 @@ pub fn append_line_if_missing(
   }
   new_content.push_str(line);
   new_content.push('\n');
-  fs::write(path, new_content)?;
+  atomic_write_string(path, new_content.as_str())?;
   Ok(())
 }
 

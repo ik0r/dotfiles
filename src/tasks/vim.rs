@@ -39,7 +39,7 @@ pub fn append_dotvim_group(group: &str, ctx: &Context) -> anyhow::Result<()> {
     if let Some(parent) = conf.parent() {
       utils::ensure_dir(parent)?;
     }
-    std::fs::write(&conf, replaced)?;
+    utils::atomic_write_string(&conf, replaced.as_str())?;
     return Ok(());
   }
 
@@ -52,7 +52,7 @@ pub fn append_dotvim_group(group: &str, ctx: &Context) -> anyhow::Result<()> {
     new_content.push('\n');
   }
   new_content.push_str(format!("let g:dotvim_groups = ['{}']\n", group).as_str());
-  std::fs::write(&conf, new_content)?;
+  utils::atomic_write_string(&conf, new_content.as_str())?;
   Ok(())
 }
 

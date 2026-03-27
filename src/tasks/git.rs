@@ -127,7 +127,7 @@ pub fn sync_repo_batch(repos: Vec<(&'static str, PathBuf)>, ctx: &Context) -> an
   }
 
   let queue = Arc::new(Mutex::new(repos.into_iter().collect::<Vec<_>>()));
-  let errs = Arc::new(Mutex::new(Vec::<anyhow::Error>::new()));
+  let errs = Arc::new(Mutex::new(Vec::<String>::new()));
 
   let mut handles = Vec::new();
   for _ in 0..ctx.jobs {
@@ -143,14 +143,21 @@ pub fn sync_repo_batch(repos: Vec<(&'static str, PathBuf)>, ctx: &Context) -> an
     handles.push(thread::spawn(move || {
       loop {
         let item = {
-          let mut q = queue.lock().unwrap();
+          let mut q = match queue.lock() {
+            Ok(q) => q,
+            Err(poisoned) => poisoned.into_inner(),
+          };
           q.pop()
         };
         let Some((uri, path)) = item else {
           break;
         };
         if let Err(err) = sync_repo(uri, &path, None, &ctx) {
-          errs.lock().unwrap().push(err);
+          let mut e = match errs.lock() {
+            Ok(e) => e,
+            Err(poisoned) => poisoned.into_inner(),
+          };
+          e.push(format!("{} -> {}: {}", uri, path.display(), err));
         }
       }
     }));
@@ -160,9 +167,13 @@ pub fn sync_repo_batch(repos: Vec<(&'static str, PathBuf)>, ctx: &Context) -> an
     let _ = h.join();
   }
 
-  let errs = errs.lock().unwrap();
+  let errs = match errs.lock() {
+    Ok(e) => e,
+    Err(poisoned) => poisoned.into_inner(),
+  };
   if !errs.is_empty() {
-    anyhow::bail!("sync repo batch failed: {} errors", errs.len());
+    let summary = errs.iter().take(10).cloned().collect::<Vec<_>>().join("\n");
+    anyhow::bail!("sync repo batch failed: {} errors\n{}", errs.len(), summary);
   }
   Ok(())
 }
