@@ -64,7 +64,7 @@ pub(super) fn install_fonts_source_code_pro(ctx: &Context) -> anyhow::Result<()>
   }
 
   if utils::program_exists("fc-cache") {
-    let _ = ctx.run_status(
+    let _ = ctx.run_status_quiet(
       "fc-cache",
       &["-f", fonts_dir.to_string_lossy().as_ref()],
       None,

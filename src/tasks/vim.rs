@@ -78,26 +78,24 @@ pub fn ensure_neovim_python_support(ctx: &Context) -> anyhow::Result<()> {
 
   if utils::program_exists("pip2") {
     ui::info("Installing python2 neovim package ...");
-    let status = utils::run_status(
+    let status = ctx.run_status(
       "pip2",
       &["install", "--user", "--upgrade", "neovim"],
       None,
       &[],
       false,
-      ctx.dry_run,
     )?;
     if !status.success() {
       anyhow::bail!("pip2 install neovim failed");
     }
   } else if utils::program_exists("pip") {
     ui::info("Installing python2 neovim package ...");
-    let status = utils::run_status(
+    let status = ctx.run_status(
       "pip",
       &["install", "--user", "--upgrade", "neovim"],
       None,
       &[],
       false,
-      ctx.dry_run,
     )?;
     if !status.success() {
       anyhow::bail!("pip install neovim failed");
@@ -106,13 +104,12 @@ pub fn ensure_neovim_python_support(ctx: &Context) -> anyhow::Result<()> {
 
   if utils::program_exists("pip3") {
     ui::info("Installing python3 neovim package ...");
-    let status = utils::run_status(
+    let status = ctx.run_status(
       "pip3",
       &["install", "--user", "--upgrade", "neovim"],
       None,
       &[],
       false,
-      ctx.dry_run,
     )?;
     if !status.success() {
       anyhow::bail!("pip3 install neovim failed");

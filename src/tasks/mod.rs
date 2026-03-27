@@ -39,12 +39,52 @@ impl Context {
     envs: &[(&str, &str)],
     sudo: bool,
   ) -> anyhow::Result<std::process::ExitStatus> {
+    if self.dry_run {
+      let cmd = format_cmd(program, args, sudo);
+      ui::info(format!("dry-run: {}", cmd).as_str());
+    }
+    utils::run_status(program, args, cwd, envs, sudo, self.dry_run)
+  }
+
+  pub fn run_status_quiet(
+    &self,
+    program: &str,
+    args: &[&str],
+    cwd: Option<&Path>,
+    envs: &[(&str, &str)],
+    sudo: bool,
+  ) -> anyhow::Result<std::process::ExitStatus> {
     utils::run_status(program, args, cwd, envs, sudo, self.dry_run)
   }
 
   pub fn symlink(&self, src: &Path, dst: &Path) -> anyhow::Result<()> {
+    if self.dry_run {
+      ui::info(format!("dry-run: ln -s {} {}", src.display(), dst.display()).as_str());
+    }
     utils::symlink(src, dst, self.backup, self.dry_run)
   }
+}
+
+fn format_cmd(program: &str, args: &[&str], sudo: bool) -> String {
+  let mut parts = Vec::new();
+  if sudo {
+    parts.push("sudo".to_string());
+  }
+  parts.push(shell_quote(program));
+  for arg in args {
+    parts.push(shell_quote(arg));
+  }
+  parts.join(" ")
+}
+
+fn shell_quote(s: &str) -> String {
+  let safe = s
+    .chars()
+    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-' | '/' | ':' | '@' | '='));
+  if safe {
+    return s.to_string();
+  }
+  format!("'{}'", s.replace('\'', r#"'\''"#))
 }
 
 pub fn print_usage() {

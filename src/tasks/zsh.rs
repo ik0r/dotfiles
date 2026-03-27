@@ -44,14 +44,7 @@ pub fn ensure_default_shell_is_zsh(ctx: &Context) -> anyhow::Result<()> {
   };
 
   ui::info("Time to change your default shell to zsh!");
-  let status = utils::run_status(
-    "chsh",
-    &["-s", zsh_path.as_str()],
-    None,
-    &[],
-    false,
-    ctx.dry_run,
-  )?;
+  let status = ctx.run_status("chsh", &["-s", zsh_path.as_str()], None, &[], false)?;
   if !status.success() {
     ui::error("Failed to change default shell to zsh. Please do it manually.");
   }
