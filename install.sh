@@ -157,9 +157,6 @@ function usage(){
   echo 'Tasks:'
   printf "$dot_color_green\n"
   echo '    - editorconfig'
-  echo '    - emacs'
-  echo '    - emacs_spacemacs'
-  echo '    - fonts_source_code_pro'
   echo '    - git_alias'
   echo '    - git_config'
   echo '    - git_diff_so_fancy'
@@ -199,148 +196,6 @@ function install_editorconfig(){
 
   tip "Maybe you should install editorconfig plugin for vim"
   success "Successfully installed editorconfig."
-}
-
-function install_emacs(){
-
-  must_program_exists "emacs"
-
-  step "Installing emacs config ..."
-
-  local prompt=false
-  local repo_uri="https://github.com/ik0r/emacs.d.git"
-
-  if ( is_dir_exists "$HOME/.emacs.d" ); then
-    if [[ $repo_uri != `cd $HOME/.emacs.d && git remote get-url origin 2> /dev/null` ]]; then
-      tip "Your old .emacs.d is not the .emacs.d to be installed."
-      prompt=true
-    fi;
-  fi;
-
-  if [[ $prompt == true ]]; then
-    local override
-    read -p "$(prompt "Do you want to override your old .emacs.d? (y/n) ")" override
-    case $override in
-      y|Y|'')
-        info "Remove old .emacs.d"
-        rm -rf $HOME/.emacs.d
-        ;;
-      n|N)
-        info "Do not override your old .emacs.d. Please remove or backup yourself."
-        return
-        ;;
-      *)
-        error "invalid option"
-        exit 1
-    esac;
-  fi;
-
-  sync_repo "$repo_uri" "$HOME/.emacs.d"
-
-  success "Successfully installed emacs config."
-}
-
-function install_emacs_spacemacs(){
-
-  must_program_exists "emacs"
-
-  step "Installing spacemacs config ..."
-
-  local prompt=false
-  local repo_spacemacs_uri="https://github.com/syl20bnr/spacemacs.git"
-  local repo_config_uri="https://github.com/ik0r/spacemacs.d.git"
-
-  if ( is_dir_exists "$HOME/.emacs.d" ); then
-    local exist_repo_uri=`cd $HOME/.emacs.d && git remote get-url origin 2> /dev/null`
-    if [[ $repo_spacemacs_uri != "$exist_repo_uri" ]] &&
-       [[ $repo_spacemacs_uri != "$exist_repo_uri.git" ]]; then
-      tip "Your old .emacs.d is not spacemacs repo."
-      prompt=true
-    fi;
-  fi;
-
-  if [[ $prompt == true ]]; then
-    local override
-    read -p "$(prompt "Do you want to override your old .emacs.d? (y/n) ")" override
-    case $override in
-      y|Y|'')
-        info "Remove old .emacs.d"
-        rm -rf $HOME/.emacs.d
-        ;;
-      n|N)
-        info "Do not override your old .emacs.d. Please remove or backup yourself."
-        return
-        ;;
-      *)
-        error "invalid option"
-        exit 1
-    esac;
-  fi;
-
-  sync_repo "$repo_spacemacs_uri" \
-            "$HOME/.emacs.d" \
-            "develop"
-
-  sync_repo "$repo_config_uri" \
-            "$HOME/.spacemacs.d"
-
-  success "Successfully installed spacemacs and config."
-
-  install_fonts_source_code_pro
-}
-
-function install_fonts_source_code_pro(){
-  # only install fonts locally
-  if [ -z "$DOT_FORCE_FONTS_INSTALL" ]; then
-    if [ -n "$DOT_IGNORE_FONTS_INSTALL" ]; then
-      info "Pass installing fonts according to DOT_IGNORE_FONTS"
-      return
-    fi;
-    if [ -n "$SSH_CONNECTION" ]; then
-      info "Pass installing fonts according to SSH_CONNECTION"
-      tip "Maybe you should install the font *Source Code Pro* locally."
-      return
-    fi;
-  fi;
-
-  if ( ! is_mac ) && ( ! is_linux ); then
-    error "This support *Linux* and *Mac* only"
-    exit 1
-  fi;
-
-  must_program_exists "git"
-
-  step "Installing font Source Code Pro ..."
-
-  sync_repo "https://github.com/adobe-fonts/source-code-pro.git" \
-            "$APP_PATH/.cache/source-code-pro" \
-            "release"
-
-  local source_code_pro_ttf_dir="$APP_PATH/.cache/source-code-pro/TTF"
-
-  # borrowed from powerline/fonts/install.sh
-  local find_command="find \"$source_code_pro_ttf_dir\" \( -name '*.[o,t]tf' -or -name '*.pcf.gz' \) -type f -print0"
-
-  local fonts_dir
-
-  if ( is_mac ); then
-    # MacOS
-    fonts_dir="$HOME/Library/Fonts"
-  else
-    # Linux
-    fonts_dir="$HOME/.fonts"
-    mkdir -p $fonts_dir
-  fi
-
-  # Copy all fonts to user fonts directory
-  eval $find_command | xargs -0 -I % cp "%" "$fonts_dir/"
-
-  # Reset font cache on Linux
-  if [[ -n `which fc-cache` ]]; then
-    fc-cache -f $fonts_dir
-  fi
-
-  success "Successfully installed Source Code Pro font."
 }
 
 function install_git_alias(){
@@ -651,9 +506,7 @@ function install_vim_plugins(){
 
   success "You can add your own plugins to ~/.vimrc.plugins.local , vim will source them automatically"
 
-  install_fonts_source_code_pro
-
-  tip "In order to use powerline symbols with airline in vim, please set your terminal to use the font *Source Code Pro*"
+  tip "In order to use powerline symbols with airline in vim, please install a powerline/Nerd Font and set your terminal to use it"
 }
 
 function util_must_vimrc_plugins_exists(){
@@ -953,15 +806,6 @@ else
     case $arg in
       editorconfig)
         install_editorconfig
-        ;;
-      emacs)
-        install_emacs
-        ;;
-      emacs_spacemacs)
-        install_emacs_spacemacs
-        ;;
-      fonts_source_code_pro)
-        install_fonts_source_code_pro
         ;;
       git_alias)
         install_git_alias

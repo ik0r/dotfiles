@@ -11,9 +11,6 @@ cd ~/.dotfiles
 All available tasks:
 
 - [editorconfig](#task-editorconfig)
-- [emacs](#task-emacs)
-- [emacs_spacemacs](#task-emacs_spacemacs)
-- [fonts_source_code_pro](#task-fonts_source_code_pro)
 - [git_alias](#task-git_alias)
 - [git_config](#task-git_config)
 - [git_diff_so_fancy](#task-git_diff_so_fancy)
@@ -51,30 +48,6 @@ You can do a specific task by run
 
     Install global `.editorconfig` to you home. You can see
     [what config is used](editorconfig/editorconfig).
-
-- ### Task `emacs`
-    Requirement(s): `git`, `emacs`
-
-    Install emacs config to your `~/.emacs.d`.
-
-- ### Task `emacs_spacemacs`
-    Requirement(s): `git`, `emacs`
-
-    Install popular [spacemacs](https://github.com/syl20bnr/spacemacs) for your emacs.
-
-- ### Task `fonts_source_code_pro`
-    Requirement(s): `git`
-
-    This task will install
-    [Source Code Pro](https://github.com/adobe-fonts/source-code-pro) font for you.
-
-    The new version font is compatible with powerline fonts which have some
-    useful symbols used in some vim plugins and shell plugins, and it will
-    update frequently. So use it to replace
-    [Powerline fonts](https://github.com/powerline/fonts).
-
-    This font will be installed automatically when do task
-    [emacs_spacemacs](#task-emacs_spacemacs) and [vim_plugins](#task-vim_plugins).
 
 - ### Task `git_alias`
     Requirement(s): `git`
