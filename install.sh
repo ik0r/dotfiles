@@ -70,16 +70,16 @@ function is_program_exists(){
   fi;
 }
 function must_file_exists(){
-  for file in $@; do
-    if ( ! is_file_exists $file ); then
+  for file in "$@"; do
+    if ( ! is_file_exists "$file" ); then
       error "You must have file *$file*"
-      exit
+      exit 1
     fi;
   done;
 }
 function better_program_exists_one(){
   local exists="no"
-  for program in $@; do
+  for program in "$@"; do
     if ( is_program_exists "$program" ); then
       exists="yes"
       break
@@ -90,10 +90,10 @@ function better_program_exists_one(){
   fi;
 }
 function must_program_exists(){
-  for program in $@; do
+  for program in "$@"; do
     if ( ! is_program_exists "$program" ); then
       error "You must have *$program* installed!"
-      exit
+      exit 1
     fi;
   done;
 }
@@ -129,7 +129,7 @@ function sync_repo(){
   local repo_name=${1:19} # length of (https://github.com/)
 
   local branch_option
-  if [[ ! -z repo_branch ]]; then
+  if [[ -n "$repo_branch" ]]; then
     branch_option="--branch $repo_branch"
   fi;
 
@@ -155,7 +155,7 @@ function sync_repo(){
 function util_must_python_pipx_exists(){
   if ( ! is_program_exists pip ) && ( ! is_program_exists pip2 ) && ( ! is_program_exists pip3 ); then
     error "You must have installed pip or pip2 or pip3 for installing python packages."
-    exit
+    exit 1
   fi;
 }
 
@@ -171,6 +171,7 @@ function usage(){
   echo '    - emacs'
   echo '    - emacs_spacemacs'
   echo '    - fonts_source_code_pro'
+  echo '    - git_alias'
   echo '    - git_config'
   echo '    - git_diff_so_fancy'
   echo '    - git_difftool_vscode'
@@ -185,9 +186,9 @@ function usage(){
   echo '    - vim_plugins_fcitx'
   echo '    - vim_plugins_matchtag'
   echo '    - vim_plugins_snippets'
-  echo '    - vim_plugins_ycm'
   echo '    - nvim'
   echo '    - zsh_omz'
+  echo '    - zsh_omz_cfg'
   echo '    - zsh_omz_plugins_git_diff_so_fancy'
   echo '    - zsh_omz_plugins_fzf'
   echo '    - zsh_omz_plugins_thefuck'
@@ -244,7 +245,7 @@ function install_emacs(){
         ;;
       *)
         error "invalid option"
-        exit
+        exit 1
     esac;
   fi;
 
@@ -286,7 +287,7 @@ function install_emacs_spacemacs(){
         ;;
       *)
         error "invalid option"
-        exit
+        exit 1
     esac;
   fi;
 
@@ -318,7 +319,7 @@ function install_fonts_source_code_pro(){
 
   if ( ! is_mac ) && ( ! is_linux ); then
     error "This support *Linux* and *Mac* only"
-    exit
+    exit 1
   fi;
 
   must_program_exists "git"
@@ -425,8 +426,8 @@ function install_git_config(){
   read -p "$(prompt "What's your git email? (${user_name}@example.com) ")" user_email
   : ${user_email:="${user_name}@example.com"}
 
-  git config --global user.name $user_name
-  git config --global user.email $user_email
+  git config --global user.name "$user_name"
+  git config --global user.email "$user_email"
 
   success "Successfully installed gitconfig."
 }
@@ -454,7 +455,7 @@ function install_git_diff_so_fancy(){
 function install_git_difftool_kaleidoscope(){
   if ( ! is_mac ); then
     error "Only MAC is supported"
-    exit
+    exit 1
   fi;
 
   must_program_exists "git" \
@@ -475,7 +476,7 @@ function install_git_difftool_kaleidoscope(){
 function install_git_mergetool_kaleidoscope(){
   if ( ! is_mac ); then
     error "Only MAC is supported"
-    exit
+    exit 1
   fi;
 
   must_program_exists "git" \
@@ -549,7 +550,7 @@ function install_homebrew(){
 
   if ( is_program_exists "brew" ); then
     success "You have already installed homebrew"
-    exit
+    exit 0
   fi;
 
   must_program_exists "curl"
@@ -647,7 +648,7 @@ function install_vim_plugins(){
 
   if ( ! is_file_exists "$HOME/.vimrc" ); then
     error "You should complete vim_rc task first"
-    exit
+    exit 1
   fi;
 
   step "Initializing vim-plug"
@@ -672,7 +673,7 @@ function install_vim_plugins(){
 function util_must_vimrc_plugins_exists(){
   if ( ! is_file_exists "$HOME/.vimrc.plugins" ); then
     error "You should complete vim_plugins task first"
-    exit
+    exit 1
   fi;
 }
 
@@ -685,7 +686,7 @@ function install_vim_plugins_fcitx(){
   if ( is_mac ); then
     if [ "$FCITX_IM" = "" ]; then
       error "You must set FCITX_IM to use fcitx-vim-osx plugin"
-      exit
+      exit 1
     fi;
     sync_repo "https://github.com/CodeFalling/fcitx-remote-for-osx.git" \
               "$APP_PATH/vim/.cache/fcitx-remote-for-osx" \
@@ -1045,7 +1046,7 @@ function install_zsh_zim_plugins_zlua(){
 if [ $# = 0 ]; then
   usage
 else
-  for arg in $@; do
+  for arg in "$@"; do
     case $arg in
       editorconfig)
         install_editorconfig

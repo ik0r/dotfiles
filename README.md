@@ -8,7 +8,7 @@ cd ~/.dotfiles
 ```
 
 ## Tasks
-All vailable tasks:
+All available tasks:
 
 - [editorconfig](#task-editorconfig)
 - [emacs](#task-emacs)
@@ -29,7 +29,9 @@ All vailable tasks:
 - [vim_plugins_fcitx](#task-vim_plugins_fcitx)
 - [vim_plugins_matchtag](#task-vim_plugins_matchtag)
 - [vim_plugins_snippets](#task-vim_plugins_snippets)
+- [nvim](#task-nvim)
 - [zsh_omz](#task-zsh_omz)
+- [zsh_omz_cfg](#task-zsh_omz_cfg)
 - [zsh_omz_plugins_fzf](#task-zsh_omz_plugins_fzf)
 - [zsh_omz_plugins_git_diff_so_fancy](#task-zsh_omz_plugins_git_diff_so_fancy)
 - [zsh_omz_plugins_thefuck](#task-zsh_omz_plugins_thefuck)
@@ -348,6 +350,12 @@ You can do a specific task by run
     Plug 'honza/vim-snippets'
     ```
 
+- ### Task `nvim`
+    Requirement(s): `git`, `nvim`
+
+    Symlink the `nvim/` config to `~/.config/nvim` and run `Lazy sync` to
+    install plugins. This config is based on [lazy.nvim](https://github.com/folke/lazy.nvim).
+
 - ### Task `zsh_omz`
     Requirement(s): `git`, `zsh`
 
@@ -382,6 +390,12 @@ You can do a specific task by run
     | osx                      | OS X                                                  |                                                |
 
     So, maybe you should install some of them to make full use of zsh.
+
+- ### Task `zsh_omz_cfg`
+    Requirement(s): `zsh`, [task zsh_omz](#task-zsh_omz)
+
+    Symlink the shipped `~/.zshrc.local` extra config. zsh sources it
+    automatically after oh-my-zsh.
 
 - ### Task `zsh_omz_plugins_fzf`
     Requirement(s): `git`, `zsh`, [task zsh_omz](#task-zsh_omz)
