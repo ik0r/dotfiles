@@ -106,19 +106,11 @@ if [[ "$INSIDE_EMACS" == "" ]]; then
   )
 fi;
 
-# if we have fasd installed, add fasd plugin
-# otherwise use z plugin
-if ( is_program_exists fasd ); then
-  plugins=(
-    $plugins
-    fasd
-  )
-else
-  plugins=(
-    $plugins
-    z
-  )
-fi
+# add z plugin for directory jumping
+plugins=(
+  $plugins
+  z
+)
 
 if [ -d "$FZF_BASE" ]; then
   plugins=(

@@ -27,8 +27,6 @@ All available tasks:
 - [vim_rc](#task-vim_rc)
 - [vim_plugins](#task-vim_plugins)
 - [vim_plugins_fcitx](#task-vim_plugins_fcitx)
-- [vim_plugins_matchtag](#task-vim_plugins_matchtag)
-- [vim_plugins_snippets](#task-vim_plugins_snippets)
 - [nvim](#task-nvim)
 - [zsh_omz](#task-zsh_omz)
 - [zsh_omz_cfg](#task-zsh_omz_cfg)
@@ -36,7 +34,6 @@ All available tasks:
 - [zsh_omz_plugins_git_diff_so_fancy](#task-zsh_omz_plugins_git_diff_so_fancy)
 - [zsh_omz_plugins_thefuck](#task-zsh_omz_plugins_thefuck)
 - [zsh_omz_plugins_zlua](#task-zsh_omz_plugins_zlua)
-- [zsh_plugins_fasd](#task-zsh_plugins_fasd)
 - [zsh_zim](#task-zsh_zim)
 - [zsh_zim_plugins_fzf](#task-zsh_zim_plugins_fzf)
 - [zsh_zim_plugins_git_diff_so_fancy](#task-zsh_zim_plugins_git_diff_so_fancy)
@@ -294,11 +291,6 @@ You can do a specific task by run
     Plug 'heavenshell/vim-jsdoc'
     Plug 'mtscout6/syntastic-local-eslint.vim'
 
-    " group 'php'
-    Plug 'SirVer/ultisnips'
-    Plug 'tobyS/vmustache'
-    Plug 'tobyS/pdv'
-
     " group 'markdown'
     Plug 'godlygeek/tabular'
     Plug 'plasticboy/vim-markdown'
@@ -319,35 +311,6 @@ You can do a specific task by run
     ```viml
     " group 'fcitx'
     Plug 'CodeFalling/fcitx-vim-osx'
-    ```
-
-- ### Task `vim_plugins_matchtag`
-    Requirement(s): `git`, `vim`, `curl`, `python`,
-    [task vim_plugins](#task-vim_plugins)
-
-    Install html matchtag plugin for vim. Here i use python version matchtag.
-    If you don't want to include python modules, you can also use non-python
-    version 'gregsexton/MatchTag'
-
-    ##### Included plugin(s)
-
-    ```viml
-    " group 'matchtag'
-    Plug 'valloric/MatchTagAlways'
-    ```
-
-- ### Task `vim_plugins_snippets`
-    Requirement(s): `git`, `vim`, `curl`, `python`,
-    [task vim_plugins](#task-vim_plugins)
-
-    Install vim-snippets plugin for vim.
-
-    ##### Included plugin(s)
-
-    ```viml
-    " group 'snippets'
-    Plug 'SirVer/ultisnips'
-    Plug 'honza/vim-snippets'
     ```
 
 - ### Task `nvim`
@@ -377,7 +340,7 @@ You can do a specific task by run
     | zsh-syntax-highlighting  |                                                       |                                                |
     | history-substring-search |                                                       |                                                |
     | zsh-autosuggestions      |                                                       | disabled in Emacs eshell. **TIP**: If your auto suggestion's color is same with your normal command's color, please make sure you `$TERM` support 256 color! |
-    | fasd(z)                  | [task zsh_plugins_fasd](#task-zsh_plugins_fasd)       | z is used otherwise when fasd is not installed |
+    | z                        |                                                       | directory jumping                              |
     | git                      | git                                                   |                                                |
     | gitfast                  | git                                                   |                                                |
     | diff-so-fancy            | [task zsh_omz_plugins_git_diff_so_fancy](#task-zsh_omz_plugins_git_diff_so_fancy)|                     |
@@ -416,11 +379,6 @@ You can do a specific task by run
     Requirement(s): `git`, `zsh`, `lua`
 
     Install zsh plugin [`z.lua`](https://github.com/skywind3000/z.lua)
-
-- ### Task `zsh_plugins_fasd`
-    Requirement(s): `git`, `zsh`
-
-    Install zsh plugin [`fasd`](https://github.com/clvv/fasd)
 
 - ### Task `zsh_zim`
     Requirement(s): `git`, `zsh`

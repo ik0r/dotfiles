@@ -16,22 +16,11 @@ APP_PATH="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
 # color params
 dot_color_none="\033[0m"
-dot_color_dark="\033[0;30m"
-dot_color_dark_light="\033[1;30m"
-dot_color_red="\033[0;31m"
 dot_color_red_light="\033[1;31m"
 dot_color_green="\033[0;32m"
-dot_color_green_light="\033[1;32m"
 dot_color_yellow="\033[0;33m"
-dot_color_yellow_light="\033[1;33m"
-dot_color_blue="\033[0;34m"
-dot_color_blue_light="\033[1;34m"
 dot_color_purple="\033[0;35m"
-dot_color_purple_light="\033[1;35m"
 dot_color_cyan="\033[0;36m"
-dot_color_cyan_light="\033[1;36m"
-dot_color_gray="\033[0;37m"
-dot_color_gray_light="\033[1;37m"
 
 ########## Basics setup
 function msg(){
@@ -57,10 +46,10 @@ function tip(){
 }
 
 function is_file_exists(){
-  [[ -e "$1" ]] && return 0 || return 1
+  [[ -e "$1" ]]
 }
 function is_dir_exists(){
-  [[ -d "$1" ]] && return 0 || return 1
+  [[ -d "$1" ]]
 }
 function is_program_exists(){
   if type "$1" &>/dev/null; then
@@ -99,13 +88,13 @@ function must_program_exists(){
 }
 
 function is_platform(){
-  [[ `uname` = "$1" ]] && return 0 || return 1
+  [[ `uname` = "$1" ]]
 }
 function is_linux(){
-  ( is_platform Linux ) && return 0 || return 1
+  is_platform Linux
 }
 function is_mac(){
-  ( is_platform Darwin ) && return 0 || return 1
+  is_platform Darwin
 }
 
 function lnif(){
@@ -184,8 +173,6 @@ function usage(){
   echo '    - vim_rc'
   echo '    - vim_plugins'
   echo '    - vim_plugins_fcitx'
-  echo '    - vim_plugins_matchtag'
-  echo '    - vim_plugins_snippets'
   echo '    - nvim'
   echo '    - zsh_omz'
   echo '    - zsh_omz_cfg'
@@ -193,7 +180,6 @@ function usage(){
   echo '    - zsh_omz_plugins_fzf'
   echo '    - zsh_omz_plugins_thefuck'
   echo '    - zsh_omz_plugins_zlua'
-  echo '    - zsh_plugins_fasd'
   echo '    - zsh_zim'
   echo '    - zsh_zim_plugins_fzf'
   echo '    - zsh_zim_plugins_git_diff_so_fancy'
@@ -691,8 +677,12 @@ function install_vim_plugins_fcitx(){
     sync_repo "https://github.com/CodeFalling/fcitx-remote-for-osx.git" \
               "$APP_PATH/vim/.cache/fcitx-remote-for-osx" \
               "binary"
+    local brew_prefix="/usr/local"
+    if ( is_program_exists brew ); then
+      brew_prefix="$(brew --prefix)"
+    fi;
     lnif "$APP_PATH/vim/.cache/fcitx-remote-for-osx/fcitx-remote-$FCITX_IM" \
-         "/usr/local/bin/fcitx-remote"
+         "$brew_prefix/bin/fcitx-remote"
   fi;
 
   util_append_dotvim_group "fcitx"
@@ -700,75 +690,6 @@ function install_vim_plugins_fcitx(){
   vim +PlugInstall +qall
 
   success "Successfully installed fcitx support plugin."
-}
-
-function util_ensure_neovim_python_support(){
-
-  if ( ! is_program_exists nvim ); then
-    return
-  fi;
-
-  if [[ `uname -a` =~ "gentoo" ]] && ( is_file_exists /etc/gentoo-release ); then
-      # in gentoo, recommend enable python USE flag to automatically install pynvim
-      tip "You are using Gentoo Linux."
-      tip "You should enable *python* USE flag for neovim, and reinstall neovim."
-      tip "Then dev-python/neovim-python-client will be installed automatically."
-      tip "Also you can run '[sudo] emerge -a dev-python/neovim-python-client' manually."
-      return
-  fi;
-
-  util_must_python_pipx_exists
-
-  if ( is_program_exists pip2 ); then
-    info "Installing python2 neovim package ..."
-    pip2 install --user --upgrade neovim
-  elif ( is_program_exists pip ); then
-    info "Installing python2 neovim package ..."
-    pip install --user --upgrade neovim
-  fi;
-
-  if ( is_program_exists pip3 ); then
-    info "Installing python3 neovim package ..."
-    pip3 install --user --upgrade neovim
-  fi;
-
-  success "Successfully installed neovim python client."
-}
-
-function install_vim_plugins_matchtag(){
-
-  util_must_vimrc_plugins_exists
-
-  must_program_exists "python"
-
-  step "Installing vim MatchTagAlways plugin ..."
-
-  # check whether have neovim. if have, make sure neovim have python feature support
-  util_ensure_neovim_python_support
-
-  util_append_dotvim_group "matchtag"
-
-  vim +PlugInstall +qall
-
-  success "Successfully installed MatchTagAlways plugins."
-}
-
-function install_vim_plugins_snippets(){
-
-  util_must_vimrc_plugins_exists
-
-  must_program_exists "python"
-
-  step "Installing vim snippets plugin ..."
-
-  # check whether have neovim. if have, make sure neovim have python feature support
-  util_ensure_neovim_python_support
-
-  util_append_dotvim_group "snippets"
-
-  vim +PlugInstall +qall
-
-  success "Successfully installed vim-snippets plugins."
 }
 
 function install_nvim(){
@@ -837,24 +758,6 @@ function install_zsh_omz_cfg(){
        "$HOME/.zshrc.local"
 
   success "Successfully installed omz configs"
-  success "Please open a new zsh terminal to make configs go into effect."
-}
-
-function install_zsh_plugins_fasd(){
-  step "Installing fasd plugin for zsh ..."
-
-  # add zsh plugin fasd support
-  sync_repo "https://github.com/clvv/fasd.git" \
-            "$APP_PATH/zsh/.cache/fasd"
-  cd "$APP_PATH/zsh/.cache/fasd"
-
-  if [ `id -u` -eq 0 ]; then
-    make install
-  else
-    sudo make install
-  fi;
-
-  success "Successfully installed fasd plugin."
   success "Please open a new zsh terminal to make configs go into effect."
 }
 
@@ -1099,12 +1002,6 @@ else
       vim_plugins_fcitx)
         install_vim_plugins_fcitx
         ;;
-      vim_plugins_matchtag)
-        install_vim_plugins_matchtag
-        ;;
-      vim_plugins_snippets)
-        install_vim_plugins_snippets
-        ;;
       nvim)
         install_nvim
         ;;
@@ -1125,9 +1022,6 @@ else
         ;;
       zsh_omz_plugins_zlua)
         install_zsh_omz_plugins_zlua
-        ;;
-      zsh_plugins_fasd)
-        install_zsh_plugins_fasd
         ;;
       zsh_zim)
         install_zsh_zim

@@ -5,7 +5,7 @@ if filereadable(expand("~/.vimrc.plugins.before"))
 endif
 
 if !exists('g:dotvim_groups')
-  " more options: ['explorer', 'motion', 'writing', 'git', 'tmux', 'html', 'css', 'js', 'php', 'markdown', 'nginx', 'nfo', 'fcitx', 'matchtag', 'snippets', 'youcompleteme']
+  " more options: ['explorer', 'motion', 'writing', 'git', 'tmux', 'html', 'css', 'js', 'markdown', 'nginx', 'nfo', 'fcitx']
   let g:dotvim_groups = []
 endif
 
@@ -459,18 +459,6 @@ if (count(g:dotvim_groups, 'common') && !count(g:dotvim_groups, '-js'))
   endif
 endif
 
-if (count(g:dotvim_groups, 'common') && !count(g:dotvim_groups, '-php'))
-    \ || count(g:dotvim_groups, 'php')
-  Plug 'SirVer/ultisnips'
-  " required by tobys/pdv
-  Plug 'tobyS/vmustache', {'for': ['php']}
-  " phpdoc generator,
-  " require tobys/pdv and SirVer/ultisnips
-  Plug 'tobyS/pdv', {'for': ['php']}
-  let g:pdv_template_dir = $HOME ."/.vim/plugins/pdv/templates_snip"
-  autocmd Filetype php map <leader>doc :call pdv#DocumentWithSnip()<CR>
-endif
-
 if (count(g:dotvim_groups, 'common') && !count(g:dotvim_groups, '-markdown'))
     \ || count(g:dotvim_groups, 'markdown')
   Plug 'godlygeek/tabular'
@@ -498,18 +486,6 @@ endif
 
 if count(g:dotvim_groups, 'fcitx')
   Plug 'CodeFalling/fcitx-vim-osx'
-endif
-
-if count(g:dotvim_groups, 'matchtag')
-  Plug 'Valloric/MatchTagAlways'
-endif
-
-if count(g:dotvim_groups, 'snippets')
-  Plug 'SirVer/ultisnips'
-  Plug 'honza/vim-snippets'
-    let g:UltiSnipsExpandTrigger="<Tab>"
-    let g:UltiSnipsJumpForwardTrigger="<Tab>"
-    let g:UltiSnipsJumpBackwardTrigger="<S-Tab>"
 endif
 
 " If user have own plugins or configs, load them here
