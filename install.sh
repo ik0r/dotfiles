@@ -695,6 +695,13 @@ function install_zsh_zim(){
   export ZIM_HOME="$APP_PATH/zsh/.cache/zimfw"
   curl -fsSL https://raw.githubusercontent.com/zimfw/install/master/install.zsh | zsh
 
+  # Keep the generated ~/.zimrc as-is (so it tracks zimfw's template) and pull
+  # our version-controlled modules in via a single source line.
+  local zimrc_local="$APP_PATH/zsh/zimfw/.zimrc.local"
+  if ! grep -qF "$zimrc_local" "$HOME/.zimrc" &>/dev/null ; then
+    echo "[[ -e \"$zimrc_local\" ]] && source \"$zimrc_local\"" >> "$HOME/.zimrc"
+  fi;
+
   success "Successfully installed zim."
 }
 

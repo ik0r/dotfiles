@@ -2,3 +2,10 @@ zmodule skywind3000/z.lua
 zmodule so-fancy/diff-so-fancy
 zmodule zdharma-continuum/fast-syntax-highlighting
 zmodule le0me55i/zsh-extract
+
+# oh-my-zsh plugins worth keeping: sudo (Esc Esc to prepend sudo),
+# colored-man-pages, and fzf key bindings (Ctrl-R/Ctrl-T/Alt-C)
+zmodule ohmyzsh/ohmyzsh \
+  --source plugins/sudo/sudo.plugin.zsh \
+  --source plugins/colored-man-pages/colored-man-pages.plugin.zsh \
+  --source plugins/fzf/fzf.plugin.zsh
