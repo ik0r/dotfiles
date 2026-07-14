@@ -228,3 +228,90 @@ fi;
   （这个仓库已开源，不只作者一人用）都能直接上手，不必自己移植配置。
 - 因此看到「功能重复」的 omz / zim 任务对（如 `*_plugins_fzf`、`*_plugins_zlua`）时，
   不要当成冗余删掉。
+
+## 13. zimfw 注释掉模板自带的语法高亮器，只留 fast
+
+zimfw 官方模板（`~/.zimrc`）在末尾自带 `zmodule zsh-users/zsh-syntax-highlighting`，
+而 `zsh/zimfw/.zimrc.common` 里又声明了 `fast-syntax-highlighting`。两者**不是叠加而是
+替代关系**：fast 是 zsh-syntax-highlighting 的「优化+扩展」fork（更快、chroma、内置主题、
+括号/字符串/`$()` 识别更准）。
+
+**为什么不能两个都留**：二者机制相同——都靠包裹 ZLE widget + 往 `region_highlight` 写颜色。
+同时加载会**每次敲键各算一遍**，按 hook 注册顺序后者覆盖前者的绘制，前者纯属空跑浪费
+（和「追求启动/输入速度」相悖）。构建顺序上 `.zimrc.common` 在模板行之后 source，所以
+实际生效的一直是 fast，模板那行只是在做无用功，还违反了 z-sy-h「必须最后 source」的契约。
+
+**处理方式**：`install_zsh_zim` 用 `awk` 把模板生成的那行**注释掉**（而非删除），只保留
+fast。做成注释而非删除，是为了**保留可回退性**——将来 fast 版本出问题时，取消注释即可切回
+官方 z-sy-h。幂等：`grep -qE` 只匹配「未被注释的活跃行」，重复跑是 no-op。
+
+- **为什么不改 `.zimrc.common` 删 fast**：那样虽只改一行，但会丢掉 fast 的增强特性；
+  当前诉求是「继续用 fast」，所以选择动模板侧。这是本仓「模板保持原样」原则的**例外**，
+  理由是模板这行和我们的 fast **功能冲突**、非留不可地二选一。
+- **omz 侧未跟改**：omz 底座（`.omzrc.common`）仍用 zsh-syntax-highlighting。两套框架
+  高亮器暂不统一是有意的——omz 换 fast 需额外 clone F-Sy-H 进 custom/plugins，成本更高，
+  且 omz 侧无「双高亮器」问题，没有非改不可的理由。
+
+（附带修正：`.omzrc.common` 曾无条件启用 omz 自带的 `z` 目录跳转，与 opt-in 的 `z.lua`
+重叠——同机器会跑两个跳转数据库。已删掉底座里的 `z`，目录跳转统一由 `zsh_omz_plugins_zlua`
+的 opt-in `z.lua` 提供，和 zimfw 侧对齐。）
+
+## 14. omz / zimfw 底座插件的对齐（哪些拉平、哪些有意不齐）
+
+两套框架的「无条件底座」曾有若干可对齐却不齐的差异，逐条核对后做了如下处理。
+
+**已拉平**：
+
+- **copypath / copyfile / copybuffer / dirhistory**：这几个是 omz 自带插件，zimfw 早已
+  通过 `omz_sources` 用上了，omz 自己的底座反而漏了（借给 zim 却没给自己）。已补进
+  `.omzrc.common` 的 `plugins=(...)`。
+- **encode64**：omz 底座有、zimfw 没有。已加进 `.zimrc.common` 的 `omz_sources`。
+- **macos**：omz 按 `$OSTYPE` 启用 `osx`（新版 omz 已更名 `macos`），zimfw 没有。已在
+  `.zimrc.common` 里按 `$OSTYPE == darwin*` 追加 `plugins/macos/macos.plugin.zsh`。
+- **autosuggestions 的 emacs guard**：见下，改为两边都无条件启用。
+
+**zimfw 用的 omz 仓库：底座手动 clone 到 `.cache` 再软链，以复用共享池**：`install_zsh_zim`
+（底座任务）会 `sync_repo` 把 omz clone 到 `.cache/ohmyzsh`，再 `lnif` 软链到
+`zimfw/modules/ohmyzsh`。sudo/colored-man-pages/copy*/encode64/macos 等所有 omz 插件文件都
+经这条软链被 zimfw source，`omz_sources` 里新增插件因此零成本（仓库已在）。
+
+- **为什么不让 zimfw 自己 clone**：`.zimrc.common` 末尾的 `zmodule ohmyzsh/ohmyzsh` 若不管，
+  zimfw 会在 `build` 时把 omz **自己 clone 一份**到 `modules/ohmyzsh`。可 `zsh_omz` 那边又在
+  `.cache/ohmyzsh` clone 了一份——**同一个 omz 仓库落地两份**，违背第 1 节「一份 clone 供多方
+  复用」的共享池原则。改成底座手动 clone 到 `.cache` + 软链后，omz / zimfw 共用同一份。
+- **为什么软链对 zimfw 无影响**：`build` 前软链已就位，zimfw 见 `modules/ohmyzsh` 目录已存在
+  （软链也算存在），跳过自己的 clone、直接沿软链 source 插件（第 2 节实测结论）。实测：迁移成
+  软链后 `zimfw build`，软链保持不变、omz 插件文件照常 source。
+- **为什么放在底座而非 tmux 子任务**：这套 clone+软链原先错放在可选的
+  `zsh_zim_plugins_omz_tmux` 里，导致「只有跑过 tmux 子任务的机器才有 omz 仓库」，而底座的
+  6 个核心插件其实都依赖它。提到 `install_zsh_zim` 后，每台装了 zimfw 的机器都复用同一份 clone，
+  tmux 子任务瘦身为只追加 `omz_sources+=(--source plugins/tmux/...)`。
+
+**autosuggestions：改为两边都无条件启用**：
+
+`.omzrc.common` 原本用 `if [[ "$INSIDE_EMACS" == "" ]]` 把 autosuggestions 在 emacs 终端里
+禁掉（emacs 里渲染不出灰色建议）。想让 zimfw 也一致，却发现 **zimfw 做不到同款 guard**：
+
+- omz 的 `plugins=(...)` 是**每次开 shell 运行时**读的，`if` 每次求值，能按当前是否在 emacs 里
+  动态决定 —— guard 天然有效。
+- zimfw 只在 `zimfw build` 时读 `~/.zimrc` / `.zimrc.common`，生成静态的 `init.zsh`；每次开
+  shell 只 `source init.zsh`（见 `~/.zshrc`），**运行时不再做任何条件判断**。在 `.zimrc.common`
+  里包 `if` 只会在 build 那一刻求值一次（build 时不在 emacs，就永远启用），起不到 per-shell
+  guard 的作用。要真按 shell 判断，只能在 `~/.zshrc` 的 `source init.zsh` 之后写逻辑去**卸载**
+  已加载的插件，既侵入 `~/.zshrc` 又比不加载更脏。
+
+**结论**：既然作者已不用 emacs，这个 guard 属于过时顾虑。与其在 zimfw 侧硬做脏实现，不如
+**去掉 omz 的 guard**，两边都无条件启用 autosuggestions —— 这才是真正的一致。若将来又要在
+emacs 里用，再单独处理，不必为此保留一处两框架无法对齐的逻辑。
+
+**有意保持不齐**（结构性差异，非乱）：
+
+- **git 别名**：omz 用 `git`/`gitfast`，zimfw 用模板自带的 `git`+`git-info`。别名集不同但都是
+  「git 增强」，各框架惯例，强统一无收益。
+- **prompt 主题**：omz robbyrussell + user 前缀 vs zimfw asciiship / pure，本就各用各的。
+- **tmux / git-extras 的「自动探测」vs「opt-in 子任务」**：omz 里 tmux 自带、`is_program_exists`
+  即启用；zimfw 的 tmux 插件源在 omz 仓库里，虽然 build 时已 clone，但仍走 opt-in 子任务声明。
+  git-extras 同理（且需 brew 装本体 + 插件补全，双 `is_program_exists`）。这类是「插件来源/依赖
+  形态不同」导致的结构差异，已在第 5、11 节说明，不当作不一致去消除。
+- **extract**：omz 用自带 `extract`，zimfw 用第三方 `le0me55i/zsh-extract`（第 7 节）。行为一致、
+  来源不同，不值得为对齐而改。

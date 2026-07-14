@@ -736,11 +736,36 @@ function install_zsh_zim(){
   export ZIM_HOME="$APP_PATH/zsh/.cache/zimfw"
   curl -fsSL https://raw.githubusercontent.com/zimfw/install/master/install.zsh | zsh
 
+  # .zimrc.common's core plugins (sudo/colored-man-pages/copy*/encode64/...) all
+  # source from oh-my-zsh via `zmodule ohmyzsh/ohmyzsh`. Left alone, zimfw would
+  # clone its OWN copy into modules/ohmyzsh at build time — a second clone next to
+  # the one zsh_omz keeps in .cache/ohmyzsh, breaking the shared-clone pool
+  # (docs/DESIGN.md section 1). So clone omz once into .cache and symlink it into
+  # modules/ohmyzsh here, BEFORE any build: zimfw sees the dir already exists (a
+  # symlink counts) and skips its own clone (section 2), with no effect on how it
+  # sources omz plugins. This is the base task, so every zim machine reuses one
+  # clone — not just the ones that ran zsh_zim_plugins_omz_tmux.
+  sync_repo "https://github.com/ohmyzsh/ohmyzsh.git" \
+            "$APP_PATH/zsh/.cache/ohmyzsh"
+  lnif "$APP_PATH/zsh/.cache/ohmyzsh" \
+       "$APP_PATH/zsh/.cache/zimfw/modules/ohmyzsh"
+
   # Keep the generated ~/.zimrc as-is (so it tracks zimfw's template) and pull
   # our version-controlled modules in via a single source line.
   local zimrc_common="$APP_PATH/zsh/zimfw/.zimrc.common"
   if ! grep -qF "$zimrc_common" "$HOME/.zimrc" &>/dev/null ; then
     echo "[[ -e \"$zimrc_common\" ]] && source \"$zimrc_common\"" >> "$HOME/.zimrc"
+  fi;
+
+  # The template enables zsh-users/zsh-syntax-highlighting, but .zimrc.common
+  # loads fast-syntax-highlighting (a faster, extended drop-in replacement).
+  # Running both re-highlights every keystroke twice (the later-registered hook
+  # wins and the other's work is wasted), so comment out the template's line and
+  # keep fast as the sole highlighter. See docs/DESIGN.md. Idempotent: guarded on
+  # the still-active (uncommented) line, so re-runs are no-ops.
+  if grep -qE '^[[:space:]]*zmodule zsh-users/zsh-syntax-highlighting[[:space:]]*$' "$HOME/.zimrc" &>/dev/null ; then
+    awk '/^[[:space:]]*zmodule zsh-users\/zsh-syntax-highlighting[[:space:]]*$/{print "# " $0; next} {print}' \
+      "$HOME/.zimrc" > "$HOME/.zimrc.tmp" && mv "$HOME/.zimrc.tmp" "$HOME/.zimrc"
   fi;
 
   success "Successfully installed zim."
@@ -803,12 +828,8 @@ function install_zsh_zim_plugins_omz_tmux(){
   must_program_exists "zsh" \
                       "tmux"
 
-  sync_repo "https://github.com/ohmyzsh/ohmyzsh.git" \
-            "$APP_PATH/zsh/.cache/ohmyzsh"
-
-  lnif "$APP_PATH/zsh/.cache/ohmyzsh" \
-        "$APP_PATH/zsh/.cache/zimfw/modules/ohmyzsh"
-
+  # The omz clone + symlink into modules/ohmyzsh is done by install_zsh_zim (the
+  # base task), so this opt-in subtask only declares the tmux plugin source.
   util_zimrc_local_append 'omz_sources+=(--source plugins/tmux/tmux.plugin.zsh)'
 
   success "Successfully installed tmux for zim."

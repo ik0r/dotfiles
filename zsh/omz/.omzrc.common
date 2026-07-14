@@ -18,6 +18,10 @@ function is_program_exists(){
 # zimfw's .zimrc.common). Optional plugins are opt-in via ~/.omzrc.local below.
 plugins=(
   colored-man-pages
+  copybuffer   # Ctrl-O: copy the current command line to the clipboard
+  copyfile     # copyfile <path>: copy a file's contents to the clipboard
+  copypath     # copypath: copy the current directory path to the clipboard
+  dirhistory   # Alt+arrows: navigate directory history / parent-child
   encode64
   extract
   sudo
@@ -26,20 +30,19 @@ plugins=(
   history-substring-search # put after zsh-syntax-highlighting
 )
 
-# only init zsh-autosuggestions when we not in emacs terms, because terms in
-# emacs will not render zsh-autosuggestions gray color correctyly
-if [[ "$INSIDE_EMACS" == "" ]]; then
-  plugins=(
-    $plugins
-    zsh-autosuggestions
-  )
-fi;
-
-# add z plugin for directory jumping
+# zsh-autosuggestions: always enabled (matches zimfw, which also enables it
+# unconditionally). Previously gated on $INSIDE_EMACS because emacs terminals
+# render the gray suggestion color wrong, but that guard couldn't be mirrored on
+# the zimfw side (its init.zsh is built statically, with no per-shell check), so
+# dropping it here keeps both frameworks consistent.
 plugins=(
   $plugins
-  z
+  zsh-autosuggestions
 )
+
+# Directory jumping is provided by the z.lua opt-in plugin (zsh_omz_plugins_zlua
+# writes `plugins+=(z.lua)` to ~/.omzrc.local), not omz's built-in `z`. Enabling
+# both would run two jump-databases at once, so `z` is intentionally not here.
 
 # if we have git installed, add git plugin
 if ( is_program_exists git ); then

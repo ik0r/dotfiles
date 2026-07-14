@@ -9,7 +9,7 @@ zmodule le0me55i/zsh-extract --source extract.plugin.zsh
 # array here (core, no-dep plugins) and let the switch file append more before
 # the single zmodule call at the bottom.
 #   sudo (Esc Esc), colored-man-pages, copypath/copyfile,
-#   copybuffer (Ctrl-O), dirhistory (Alt-arrows)
+#   copybuffer (Ctrl-O), dirhistory (Alt-arrows), encode64
 typeset -ga omz_sources=(
   --source plugins/sudo/sudo.plugin.zsh
   --source plugins/colored-man-pages/colored-man-pages.plugin.zsh
@@ -17,7 +17,16 @@ typeset -ga omz_sources=(
   --source plugins/copyfile/copyfile.plugin.zsh
   --source plugins/copybuffer/copybuffer.plugin.zsh
   --source plugins/dirhistory/dirhistory.plugin.zsh
+  --source plugins/encode64/encode64.plugin.zsh
 )
+
+# macOS-only aliases (matches omz's `osx`/`macos` plugin). Gated on $OSTYPE like
+# the omz side; note this is evaluated at `zimfw build` time (not per-shell), so
+# the built init.zsh includes it only on machines built under macOS — which is
+# the desired per-machine outcome.
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  omz_sources+=(--source plugins/macos/macos.plugin.zsh)
+fi;
 
 # Local switch file (git-ignored, written by install.sh plugin subtasks).
 # It may append to omz_sources and/or declare standalone modules. It must be
