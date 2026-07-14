@@ -2,8 +2,8 @@
 
 .cache
 
-vim/plugins
-vim/autoload
 vim/shada
+
+nvim.log
 
 tmux/plugins

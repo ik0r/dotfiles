@@ -66,18 +66,6 @@ function must_file_exists(){
     fi;
   done;
 }
-function better_program_exists_one(){
-  local exists="no"
-  for program in "$@"; do
-    if ( is_program_exists "$program" ); then
-      exists="yes"
-      break
-    fi;
-  done;
-  if [[ "$exists" = "no" ]]; then
-    tip "Maybe you can take full use of this by installing one of ($*)~"
-  fi;
-}
 function must_program_exists(){
   for program in "$@"; do
     if ( ! is_program_exists "$program" ); then
@@ -161,9 +149,8 @@ function usage(){
   echo '    - homebrew'
   echo '    - tmux'
   echo '    - vim_rc'
-  echo '    - vim_plugins'
-  echo '    - vim_plugins_fcitx'
   echo '    - nvim'
+  echo '    - nvim_plugins_treesitter'
   echo '    - zsh_common'
   echo '    - zsh_omz'
   echo '    - zsh_omz_cfg'
@@ -455,82 +442,8 @@ function install_vim_rc(){
   lnif "$APP_PATH/vim/vimrc" \
        "$HOME/.vimrc"
 
-  success "Successfully installed vimrc."
+  success "Successfully installed vimrc (zero-plugin, works offline out of the box)."
   success "You can add your own configs to ~/.vimrc.local, vim will source them automatically"
-}
-
-function util_append_dotvim_group(){
-  local group=$1
-  local conf="$HOME/.vimrc.plugins.before"
-
-  if ! grep -iE "^[ \t]*let[ \t]+g:dotvim_groups[ \t]*=[ \t]*\[.+]" "$conf" &>/dev/null ; then
-    printf "\nlet g:dotvim_groups = ['$group']" >> "$conf"
-  elif ! grep -iE "'$group'" "$conf" &>/dev/null; then
-    sed -e "s/]/, '$group']/" "$conf" | tee "$conf" &>/dev/null
-    if grep -iE "\[[ \t]*," "$conf" &>/dev/null; then
-      sed -e "s/\[[ \t]*,[ \t]*/[/" "$conf" | tee "$conf" &>/dev/null
-    fi;
-  fi;
-}
-
-function install_vim_plugins(){
-
-  if ( ! is_file_exists "$HOME/.vimrc" ); then
-    error "You should complete vim_rc task first"
-    exit 1
-  fi;
-
-  step "Initializing vim-plug"
-
-  sync_repo "https://github.com/junegunn/vim-plug.git" \
-            "$APP_PATH/vim/autoload"
-
-  lnif "$APP_PATH/vim/vimrc.plugins" \
-       "$HOME/.vimrc.plugins"
-
-  vim +PlugInstall +qall
-
-  better_program_exists_one "ag"
-
-  success "You can add your own plugins to ~/.vimrc.plugins.local , vim will source them automatically"
-
-  tip "In order to use powerline symbols with airline in vim, please install a powerline/Nerd Font and set your terminal to use it"
-}
-
-function util_must_vimrc_plugins_exists(){
-  if ( ! is_file_exists "$HOME/.vimrc.plugins" ); then
-    error "You should complete vim_plugins task first"
-    exit 1
-  fi;
-}
-
-function install_vim_plugins_fcitx(){
-
-  util_must_vimrc_plugins_exists
-
-  step "installing fcitx support plugin for vim ..."
-
-  if ( is_mac ); then
-    if [ "$FCITX_IM" = "" ]; then
-      error "You must set FCITX_IM to use fcitx-vim-osx plugin"
-      exit 1
-    fi;
-    sync_repo "https://github.com/CodeFalling/fcitx-remote-for-osx.git" \
-              "$APP_PATH/vim/.cache/fcitx-remote-for-osx" \
-              "binary"
-    local brew_prefix="/usr/local"
-    if ( is_program_exists brew ); then
-      brew_prefix="$(brew --prefix)"
-    fi;
-    lnif "$APP_PATH/vim/.cache/fcitx-remote-for-osx/fcitx-remote-$FCITX_IM" \
-         "$brew_prefix/bin/fcitx-remote"
-  fi;
-
-  util_append_dotvim_group "fcitx"
-
-  vim +PlugInstall +qall
-
-  success "Successfully installed fcitx support plugin."
 }
 
 function install_nvim(){
@@ -544,6 +457,41 @@ function install_nvim(){
   nvim --headless "+Lazy! sync" +qa
 
   success "Successfully installed nvim"
+  tip "Functional plugins are opt-in; run nvim_plugins_* subtasks to enable them (e.g. nvim_plugins_treesitter)."
+}
+
+function util_nvim_local_append(){
+  # Idempotently append an opt-in switch line to the git-ignored nvim switch
+  # file. Mirrors util_zimrc_local_append; ~/.nvimrc.local is loaded by init.lua
+  # before lazy setup, so plugin specs can gate on `vim.g.dotfiles_nvim_*`.
+  local line="$1"
+  local switch_file="$HOME/.nvimrc.local"
+  if ! grep -qF "$line" "$switch_file" &>/dev/null ; then
+    echo "$line" >> "$switch_file"
+  fi;
+}
+
+function install_nvim_plugins_treesitter(){
+  must_program_exists "nvim"
+
+  step "Enabling nvim-treesitter ..."
+
+  # nvim-treesitter main 分支在本地编译 parser，依赖 tree-sitter CLI（不再自带）。
+  # 缺失时高亮插件会安装失败，故这里检测：有 brew 就装，否则提示手动安装。
+  if ( ! is_program_exists "tree-sitter" ); then
+    if ( is_program_exists "brew" ); then
+      brew install tree-sitter-cli
+    else
+      tip "Install the tree-sitter CLI so nvim-treesitter can build parsers:"
+      tip "  brew install tree-sitter-cli  # or: cargo install tree-sitter-cli"
+    fi;
+  fi;
+
+  util_nvim_local_append 'vim.g.dotfiles_nvim_treesitter = true'
+
+  nvim --headless "+Lazy! sync" +qa
+
+  success "Successfully enabled nvim-treesitter."
 }
 
 function install_zsh_common(){
@@ -895,14 +843,11 @@ else
       vim_rc)
         install_vim_rc
         ;;
-      vim_plugins)
-        install_vim_plugins
-        ;;
-      vim_plugins_fcitx)
-        install_vim_plugins_fcitx
-        ;;
       nvim)
         install_nvim
+        ;;
+      nvim_plugins_treesitter)
+        install_nvim_plugins_treesitter
         ;;
       zsh_common)
         install_zsh_common

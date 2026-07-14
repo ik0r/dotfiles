@@ -22,9 +22,8 @@ All available tasks:
 - [homebrew](#task-homebrew)
 - [tmux](#task-tmux)
 - [vim_rc](#task-vim_rc)
-- [vim_plugins](#task-vim_plugins)
-- [vim_plugins_fcitx](#task-vim_plugins_fcitx)
 - [nvim](#task-nvim)
+- [nvim_plugins_treesitter](#task-nvim_plugins_treesitter)
 - [zsh_common](#task-zsh_common)
 - [zsh_omz](#task-zsh_omz)
 - [zsh_omz_cfg](#task-zsh_omz_cfg)
@@ -117,180 +116,47 @@ You can do a specific task by run
 - ### Task `vim_rc`
     Requirement(s): `git`, `vim`
 
-    This task will not install any plugin, if you want to use some plugins, do
-    **[task vim_plugins](#task-vim_plugins)**.
+    Symlink a zero-plugin, sensible-defaults `vimrc` into place. vim here is the
+    fallback editor: it works offline and out of the box on any machine (servers
+    included), with no plugin manager to bootstrap. For a richer setup use the
+    [nvim task](#task-nvim) instead.
 
-    You can override the system vim with the new one installed by `homebrew`.
-    (OS X only. This is optional, but recommended, because system vim can't use
-    system clipbord via register `+`).
+    On OS X you may want a newer vim than the system one (the system build can't
+    use the `+` clipboard register):
 
     ```sh
-    brew install macvim --with-override-system-vim
+    brew install vim   # or: brew install macvim
     ```
 
-    And then add the new vim **PATH** into your `$PATH`.
-
-    You can add your custom configs or override dotvim configs in `~/.vimrc.local`.
-
-- ### Task `vim_plugins`
-    Requirement(s): `git`, `vim`, [task vim_rc](#task-vim_rc)
-
-    Setup vim-plug, and load other plugins.
-
-    We have some dotvim_group below.
-
-    - themes
-    - interface
-    - explorer
-    - motion
-    - writing
-    - git
-    - syntastic
-    - tmux
-    - html
-    - css
-    - js
-    - php
-    - markdown
-    - nginx
-
-    In above dotvim_groups, only `themes` and `interface` will be loaded default.
-
-    You can add already defined dotvim_group above in `~/.vimrc.plugins.before`
-    like below.
-
-    ```viml
-    " load some plugins groups
-    let g:dotvim_groups = ['explorer', 'git', 'js']
-    ```
-
-    You can also add a virtual group `common` to `g:dotvim_groups` to include
-    all groups, and then use `-*` syntax to exclude some ones like below.
-
-    ```viml
-    " include groups except git
-    let g:dotvim_groups = ['common', '-git']
-    ```
-
-    If you want to override some plugin configs or to use some other plugins, you
-    can add them in `~/.vimrc.plugins.local` like below.
-
-    ```viml
-    " load your custom plugins in ~/.vimrc.plugins.local
-    " Plug 'name/repo'
-
-    " or override plugin configs already defined in ~/.vimrc.plugins
-    " let g:some_config = 'value'
-    ```
-
-    The load order for the configuration is:
-
-    1. `.vimrc` - dotvim configs
-    2. `.vimrc.plugins.before` - user's dotvim_groups define
-    3. `.vimrc.plugins` - dotvim plugins and plugin configs
-    4. `.vimrc.plugins.local` - user's custom plugins and plugin configs
-    5. `.vimrc.local` - user's custom configs
-
-    ##### Included plugin(s)
-
-    ```viml
-    " group 'themes'
-    Plug 'tomasr/molokai'
-    Plug 'altercation/vim-colors-solarized'
-    Plug 'morhetz/gruvbox'
-    Plug 'junegunn/seoul256.vim'
-    Plug 'zeis/vim-kolor'
-
-    " group 'interface'
-    Plug 'vim-airline/vim-airline'
-    Plug 'Yggdroot/indentLine'
-
-    " group 'explorer'
-    Plug 'schickling/vim-bufonly'
-    Plug 'ctrlpvim/ctrlp.vim'
-    Plug 'tacahiroy/ctrlp-funky'
-    Plug 'scrooloose/nerdtree'
-    Plug 'Xuyuanp/nerdtree-git-plugin'
-    Plug 'dyng/ctrlsf.vim'
-    Plug 't9md/vim-choosewin'
-
-    " group 'motion'
-    Plug 'justinmk/vim-sneak'
-    Plug 'unblevable/quick-scope'
-    Plug 'haya14busa/incsearch.vim'
-    Plug 'easymotion/vim-easymotion'
-    Plug 'haya14busa/incsearch-easymotion.vim'
-    Plug 'kshenoy/vim-signature'
-    Plug 'terryma/vim-expand-region'
-    Plug 't9md/vim-textmanip'
-
-    " group 'writing'
-    Plug 'ntpeters/vim-better-whitespace'
-    Plug 'Raimondi/delimitMate'
-    Plug 'junegunn/vim-easy-align'
-    Plug 'wellle/targets.vim'
-    Plug 'tpope/vim-surround'
-    Plug 'tpope/vim-repeat'
-    Plug 'scrooloose/nerdcommenter'
-    Plug 'terryma/vim-multiple-cursors'
-    Plug 'osyo-manga/vim-over'
-
-    " group 'git'
-    Plug 'airblade/vim-gitgutter'
-
-    " group 'syntastic'
-    Plug 'scrooloose/syntastic'
-
-    " group 'tmux'
-    Plug 'tmux-plugins/vim-tmux'
-    Plug 'tmux-plugins/vim-tmux-focus-events'
-    Plug 'christoomey/vim-tmux-navigator'
-
-    " group 'html'
-    Plug 'tmhedberg/matchit'
-    Plug 'mattn/emmet-vim'
-
-    " group 'css'
-    Plug 'groenewege/vim-less'
-    Plug 'hail2u/vim-css3-syntax'
-    Plug 'Marslo/vim-coloresque'
-
-    " group 'js'
-    Plug 'leafgarland/typescript-vim'
-    Plug 'kchmck/vim-coffee-script'
-    Plug 'pangloss/vim-javascript'
-    Plug 'mxw/vim-jsx'
-    Plug 'othree/yajs.vim'
-    Plug 'heavenshell/vim-jsdoc'
-    Plug 'mtscout6/syntastic-local-eslint.vim'
-
-    " group 'markdown'
-    Plug 'godlygeek/tabular'
-    Plug 'plasticboy/vim-markdown'
-
-    " group 'nginx'
-    Plug 'evanmiller/nginx-vim-syntax'
-    ```
-
-- ### Task `vim_plugins_fcitx`
-    Requirement(s): `git`, `vim`, [task vim_plugins](#task-vim_plugins)
-
-    Install fcitx support plugin for vim. This plugin help you to switch input
-    method(eg. English and Chinese keyboard) automatically when you switch vim
-    `Insert` and `Normal` mode.
-
-    ##### Included plugin(s)
-
-    ```viml
-    " group 'fcitx'
-    Plug 'CodeFalling/fcitx-vim-osx'
-    ```
+    You can add your own machine-local overrides in `~/.vimrc.local`; vim sources
+    it automatically (it is git-ignored, lives in `$HOME`).
 
 - ### Task `nvim`
     Requirement(s): `git`, `nvim`
 
     Symlink the `nvim/` config to `~/.config/nvim` and run `Lazy sync` to
     install plugins. This config is based on [lazy.nvim](https://github.com/folke/lazy.nvim).
+
+    The base install stays light: only a colorscheme plus a couple of small,
+    dependency-free editing plugins (telescope, surround) load by default.
+    Heavier functional plugins are **opt-in** — enable them with the
+    `nvim_plugins_*` subtasks below, mirroring the zsh `zsh_*_plugins_*` model.
+    Each subtask writes a switch line into `~/.nvimrc.local` (git-ignored, lives
+    in `$HOME`, loaded by `init.lua` before lazy). Plugins you never enable are
+    never installed, and `Lazy sync` prunes anything you turn back off.
+
+- ### Task `nvim_plugins_treesitter`
+    Requirement(s): `git`, `nvim`, [task nvim](#task-nvim)
+
+    Enable [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
+    (the rewritten `main` branch) for accurate syntax highlighting and
+    indentation.
+
+    It is opt-in because it is comparatively heavy: the `main` branch builds
+    parsers locally via the `tree-sitter` CLI. This task installs the CLI through
+    `brew` when available (otherwise install it yourself: `brew install
+    tree-sitter-cli` or `cargo install tree-sitter-cli`), flips the switch in
+    `~/.nvimrc.local`, and runs `Lazy sync`.
 
 - ### Task `zsh_common`
     Requirement(s): `zsh`

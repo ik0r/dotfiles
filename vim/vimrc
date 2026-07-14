@@ -1,659 +1,202 @@
 " =============================================================================
 " Author: ik0r
 " Email: i@ik0r.com
-" Website: http://iSay.me
-" Description: 适合自己使用的vimrc文件.
+" Description: 零插件的保底 vimrc —— 任何机器/服务器上开箱即用、离线可用。
+"             日常重度编辑用 VSCode / nvim，这份只求 sensible defaults + 核心习惯。
 " =============================================================================
 
-" =============================================================================
-" Initialization
-" =============================================================================
-
-" Clear autocmds
-autocmd!
-" 不要使用vi的键盘模式，而是vim自己的
-" this option is default in neovim, and removed
+" 使用 vim 自身特性而非 vi 兼容模式（用 -u 手动加载本文件时需显式开启）
 set nocompatible
 
-" Respect modelines in files up to this number of lines
-set modeline
-
-" 设置leader为 ,
-" let mapleader=","
-" let g:mapleader=","
-
-" 设置leader为 <Space>
+" leader 设为空格
 let mapleader="\<Space>"
 let g:mapleader="\<Space>"
 
 " =============================================================================
-" Encoding and Locale
+" 编码
 " =============================================================================
-
-" file encode, 文件编码,格式
 set encoding=utf-8
 set fileencodings=utf-8,gb2312,gbk,gb18030,ucs-bom,cp936,big5,euc-jp,euc-kr,latin1
-" 下面这句只影响普通模式 (非图形界面) 下的 Vim。
-set termencoding=utf-8
 set fileformats=unix,dos,mac
-" 处理consle输出乱码, use silent! prevent show error msg on some OS
-silent! language messages zh_CN.UTF-8
-set langmenu=zh_CN.UTF-8
-set helplang=cn
 
 " =============================================================================
-" Editing
+" 缩进与编辑
 " =============================================================================
+filetype plugin indent on
 
-" 在 insert 模式下切换中文输入法输入完成，然后按 Esc，就自动切换回英文输入(maybe only Gvim)
-" 使用CodeFalling/fcitx-vim-osx插件, 因此注释掉
-" macvim -> Preferences -> deselect "Draw marked text inline"
-" set imdisable
-" autocmd! InsertLeave * set imdisable
-" autocmd! InsertEnter * set noimdisable
-
-""
-"" Whitespace
-""
-" 用空格代替制表符, 将Tab自动转化成空格, [需要输入真正的Tab键时，使用 Ctrl+V + Tab]
-set expandtab
-" Tab键的宽度
-set tabstop=2
-" 在行和段开始处使用制表符
-set smarttab
-" 使得按退格键时可以一次删掉 2 个空格
-set softtabstop=2
-" 用<>调整缩进时的长度缩进2格
-set shiftwidth=2
-set shiftround    " use multiple of shiftwidth when indenting with '<' and '>'
-" 复制之前缩进
-set copyindent
-" 自动缩进" always set autoindenting on
+set expandtab        " 用空格代替制表符
+set tabstop=2        " Tab 宽度
+set softtabstop=2    " 退格一次删掉一个缩进
+set shiftwidth=2     " 自动缩进宽度
+set shiftround       " 缩进对齐到 shiftwidth 的整数倍
 set autoindent
-" 开启新行时使用智能自动缩进 "为C程序提供自动缩进
 set smartindent
-" 自动缩进
-set cindent
-" 为C/C++设置详细的信息缩进
-set cinoptions=>s,e0,n0,f0,{0,}0,^0,:s,=s,l0,gs,hs,ps,ts,+s,c3,C0,(2s,us,U0,w0,m0,j0,)20,*30
 
-" allow backspacing over everything in insert mode
-" 不设定在插入状态无法用退格键和 Delete 键删除回车符
-" 插入模式下，“←"如何删除光标前的字符：行首空白、换行符、插入点之前的字符
-" this option is default in neovim
+" 退格键可跨越自动缩进、行尾、插入起点
 set backspace=indent,eol,start
 
-set wrap
-set showbreak=↪\  " Character to precede line wraps"
+set nojoinspaces     " 合并行时句号后只留 1 个空格
+set nostartofline    " 移动时保持光标列
 
-" 在被分割的窗口间显示空白，便于阅读
-set fillchars=vert:\ ,stl:\ ,stlnc:\  "注释
-set listchars=eol:¬,tab:▸\ ,trail:•,nbsp:␣,extends:»,precedes:«
-if has('nvim')
-  set listchars+=space:.
-  " enable neovim true color support
-  silent! set termguicolors
+" =============================================================================
+" 外观
+" =============================================================================
+syntax enable
+set background=dark
+" 使用 vim 内置配色，老机器缺少时静默回退默认色，保证离线可用
+silent! colorscheme habamax
+if has('termguicolors') && ($COLORTERM ==# 'truecolor' || $COLORTERM ==# '24bit')
+  set termguicolors
 endif
 
-" fix E474: Invalid argument: diffopt+=vertical,context:3,foldcolumn:0 on osx 10.15
-set diffopt-=internal
-set diffopt+=vertical,context:3,foldcolumn:0
-
-set iskeyword-=.                    " '.' is an end of word designator
-set iskeyword-=#                    " '#' is an end of word designator
-set iskeyword-=-                    " '-' is an end of word designator
-" 带有如下符号的单词不要被换行分割
-set iskeyword+=_,$,@,%
-
-" 自动格式化
-set formatoptions=tcrqn
-" 如遇Unicode值大于255的文本，不必等到空格再折行。
-set formatoptions+=m
-if has('nvim') || has('patch584')
-  " Delete comment character when joining commented lines
-  set formatoptions+=j
-end
-" 合并两行中文时，不在中间加空格：
-set formatoptions+=B
-" Use only 1 space after "." when joining lines instead of 2
-set nojoinspaces
-
-" Don't reset cursor to start of line when moving around
-set nostartofline
-
-" 匹配括号的规则，增加针对html的<>
-set matchpairs=(:),{:},[:],<:>
-" 当光标到达行尾或者行首时，继续移动转至下一行或者上一行 允许backspace和光标键跨越行边界
-set whichwrap=b,s,<,>,~,[,]
-
-" disable matchparen plugin, this option will slow down vim in some conditions
-let loaded_matchparen = 1
-
-" =============================================================================
-" Appearance
-" =============================================================================
-
-set t_Co=256
-set background=dark
-colorscheme desert
-
-" NOTE: enable cursorline and cursorcolumn will use more than 30% CPU when `CursorMoved` and `CursorMovedI`
-" so horrible! let's disable them
-" 突出显示当前列
-" set cursorcolumn
-" 突出显示当前行
-" set cursorline
-" 高亮显示某一列,对代码宽度起到提示作用
+set number           " 显示行号
+set ruler            " 右下角显示光标位置
+set showcmd          " 显示未完成的命令
 set colorcolumn=80,100
-" 光标移动到buffer的顶部和底部时保持3行距离
 set scrolloff=1
 set sidescrolloff=1
-
-" change the terminal's title
-set title
-" 关闭错误信息响铃
+set display+=lastline
+set title            " 允许修改终端标题
 set noerrorbells
-" 关闭使用可视响铃代替呼叫
 set novisualbell
-" 置空错误铃声的终端代码
 set t_vb=
-" 设置 退出vim后，内容显示在终端屏幕, 可以用于查看和复制
-" 好处：误删什么的，如果以前屏幕打开，可以找回
-" Prevent Vim from clearing the scrollback buffer
-" " http://www.shallowsky.com/linux/noaltscreen.html
-" set t_ti=
-" set t_te=
 
-" 开启高亮语法显示
-syntax enable
-" 允许用指定语法高亮配色方案替换默认方案
-syntax on
-syntax sync minlines=50 maxlines=90
-set synmaxcol=300
+set wrap
+set linebreak        " 折行时在单词边界断开
+set showbreak=↪\ 
+set listchars=tab:▸\ ,trail:•,extends:»,precedes:«,nbsp:␣
 
-" 显示行号
-set number
-" 行号栏的宽度
-set numberwidth=4
-
-" relative will cause vim redraw always and slow down
-" so horriable, let's disable it
-" set relativenumber
-" 插入模式下用绝对行号, 普通模式下用相对
-" autocmd FocusLost * :set norelativenumber number
-" autocmd FocusGained * :set relativenumber
-" autocmd InsertEnter * :set norelativenumber number
-" autocmd InsertLeave * :set relativenumber
-
-autocmd Syntax * call matchadd('Todo',  '\W\zs\(TODO\|FIXME\|CHANGED\|DONE\|XXX\|BUG\|HACK\)')
+" 高亮 TODO/FIXME 等标记
+autocmd Syntax * call matchadd('Todo',  '\W\zs\(TODO\|FIXME\|CHANGED\|XXX\|BUG\|HACK\)')
 autocmd Syntax * call matchadd('Debug', '\W\zs\(NOTE\|INFO\|IDEA\|NOTICE\)')
 
-if has("gui_running")
-  " 设置gui字体
-  set guifont=Source\ Code\ Pro:h13
-  " 隐藏菜单栏
-  set guioptions-=m
-  " 隐藏工具栏
-  set guioptions-=T
-  " 隐藏左侧滚动条
-  set guioptions-=L
-  " 隐藏右侧滚动条
-  set guioptions-=r
-  " 隐藏底部滚动条
-  set guioptions-=b
-  " 防止光标闪烁
-  set guicursor=a:block-blinkon0
-  " 加速光标闪烁。
-  " @see http://c9s.blogspot.com/2007/12/gvim.html
-  " set guicursor+=n-v-c:block-cursor-blinkwait300-blinkon90-blinkoff90
-  " set guicursor+=i:block-cursor-blinkwait200-blinkon110-blinkoff110
-  " set guicursor+=v:ver90-cursor-blinkwait200-blinkon150-blinkoff150
-endif
-
-" Convenient command to see the difference between the current buffer and the
-" file it was loaded from, thus the changes you made.
-" Only define it when not defined already.
-if !exists(":DiffOrig")
-  command DiffOrig vert new | set buftype=nofile | read ++edit # | 0d_
-    \ | diffthis | wincmd p | diffthis
-endif
-
 " =============================================================================
-" Command Line
+" 搜索
 " =============================================================================
-
-" display incomplete commands
-set showcmd
-" Show current mode
-set showmode
-" 在编辑过程中，在右下角显示光标位置的状态行
-" show the cursor position all the time
-set ruler
-" 设定命令行的行数为 1
-set cmdheight=1
-" 历史记录数
-set history=100
-
-" Set <c-n> and <c-p> to act like Up/Down so will filter command history
-" Practical Vim p.69
-cnoremap <c-p> <up>
-cnoremap <c-n> <down>
-
-" <c-a> jumps to beginning of line to match <c-e>
-cnoremap <C-a> <Home>
-cnoremap <C-e> <End>
-
-" Expand %% to current directory
-" http://vimcasts.org/e/14
-cnoremap %% <C-R>=expand('%:h').'/'<cr>
-
-" Open help in a vertical split instead of the default horizontal split
-" http://vim.wikia.com/wiki/Replace_a_builtin_command_using_cabbrev
-cabbrev h <c-r>=(getcmdtype()==':' && getcmdpos()==1 ? 'vert h' : 'h')<cr>
-cabbrev help <c-r>=(getcmdtype()==':' && getcmdpos()==1 ? 'vert h' : 'help')<cr>
-
-""
-"" Wildmode
-""
-" 增强模式中的命令行自动完成操作,在输入命令时列出匹配项目，也就是截图底部的效果
-" this option is default in neovim
-set wildmenu
-" this option is default in neovim
-set wildmode=list:longest,full
-" Disable output and VCS files
-set wildignore+=*.o,*.out,*.obj,.git,*.rbc,*.rbo,*.class,.svn,*.gem
-
-" Disable binary files
-set wildignore+=*.dll,*.bak,*.exe,*.pyc,*.jpg,*.gif,*.png
-
-" Disable archive files
-set wildignore+=*.zip,*.tar.gz,*.tar.bz2,*.rar,*.tar.xz
-
-" Ignore bundler and sass cache
-set wildignore+=*/vendor/gems/*,*/vendor/cache/*,*/.bundle/*,*/.sass-cache/*
-
-" Ignore rails temporary asset caches
-set wildignore+=*/tmp/cache/assets/*/sprockets/*,*/tmp/cache/assets/*/sass/*
-
-" Ignore node modules
-set wildignore+=node_modules/*
-
-" Disable temp and backup files
-set wildignore+=*.swp,*~,._*
-
-" files or directoies auto completion is case insensitive
-set wildignorecase
-
-" 自动补全配置
-" 让Vim的补全菜单行为与一般IDE一致(参考VimTip1228)
-set completeopt-=menu
-set completeopt+=longest,menuone
-
-""
-"" Search
-""
-" 输入搜索内容时就显示搜索结果
-set incsearch
-" 高亮被搜索的句子（phrases）
-set hlsearch
-" 搜索或者补全时忽略大小写
-set ignorecase
-" 有一个或以上大写字母时仍大小写敏感
-set smartcase
-" 禁止在搜索到文件两端时重新搜索
-set nowrapscan
-" 行内替换
-" set gdefault
-
-" Fast remove highlight search
-" 去掉搜索高亮 search/symbol highlight persist remove
-" nnoremap <leader>sc :set hlsearch! hlsearch?<CR>
-" temporarily disable search highlighting until the next search
+set incsearch        " 边输入边搜索
+set hlsearch         " 高亮搜索结果
+set ignorecase       " 搜索忽略大小写
+set smartcase        " 含大写字母时恢复大小写敏感
+" 临时清除搜索高亮
 nnoremap <leader>sc :nohlsearch<CR>
 
 " =============================================================================
-" Buffers
+" 命令行补全
 " =============================================================================
+set wildmenu
+set wildmode=list:longest,full
+set wildignorecase
+set wildignore+=*.o,*.obj,*.pyc,*.class,*.swp,*~,.git,.svn
+set wildignore+=*.zip,*.tar.gz,*.jpg,*.png,*.gif
+set wildignore+=node_modules/*,*/tmp/*
 
-" {{{不要生成swap文件，当buffer被丢弃的时候隐藏它
-setlocal noswapfile
-" 允许在有未保存的修改时切换缓冲区，此时的修改由 vim 负责保存
-set hidden  "隐藏buff非关闭它
-set bufhidden=hide
-" }}}
-" Jump to the first open window that contains the specified buffer
+" =============================================================================
+" Buffer / Window
+" =============================================================================
+set hidden           " 允许有未保存修改时切换 buffer
+set autoread         " 文件被外部修改时自动重载
 set switchbuf=useopen
-" 设置当文件被外部改变的时候自动读入文件
-set autoread
+set splitright       " 竖直分割在右侧打开
+set splitbelow       " 水平分割在下方打开
 
-" bugfix for using :bd close all buffer and vim {{{
-" Delete buffer while keeping window layout (don't close buffer's windows).
-" Version 2008-11-18 from http://vim.wikia.com/wiki/VimTip165
-if v:version < 700 || exists('loaded_bclose') || &cp
-  finish
-else
-  let loaded_bclose = 1
-  if !exists('bclose_multiple')
-    let bclose_multiple = 1
-  endif
-  " Display an error message.
-  function! s:Warn(msg)
-    echohl ErrorMsg
-    echomsg a:msg
-    echohl NONE
-  endfunction
-  " Command ':Bclose' executes ':bd' to delete buffer in current window.
-  " The window will show the alternate buffer (Ctrl-^) if it exists,
-  " or the previous buffer (:bp), or a blank buffer if no previous.
-  " Command ':Bclose!' is the same, but executes ':bd!' (discard changes).
-  " An optional argument can specify which buffer to close (name or number).
-  function! s:Bclose(bang, buffer)
-    if empty(a:buffer)
-      let btarget = bufnr('%')
-    elseif a:buffer =~ '^\d\+$'
-      let btarget = bufnr(str2nr(a:buffer))
-    else
-      let btarget = bufnr(a:buffer)
-    endif
-
-    if btarget < 0
-      call s:Warn('No matching buffer for '.a:buffer)
-      return
-    endif
-    if empty(a:bang) && getbufvar(btarget, '&modified')
-      call s:Warn('No write since last change for buffer '.btarget.' (use :Bclose!)')
-      return
-    endif
-    " Numbers of windows that view target buffer which we will delete.
-    let wnums = filter(range(1, winnr('$')), 'winbufnr(v:val) == btarget')
-    if !g:bclose_multiple && len(wnums) > 1
-      call s:Warn('Buffer is in multiple windows (use ":let bclose_multiple=1")')
-      return
-    endif
-    let wcurrent = winnr()
-    for w in wnums
-      execute w.'wincmd w'
-      let prevbuf = bufnr('#')
-      if prevbuf > 0 && buflisted(prevbuf) && prevbuf != w
-        buffer #
-      else
-        bprevious
-      endif
-      if btarget == bufnr('%')
-        " Numbers of listed buffers which are not the target to be deleted.
-        let blisted = filter(range(1, bufnr('$')), 'buflisted(v:val) && v:val != btarget')
-        " Listed, not target, and not displayed.
-        let bhidden = filter(copy(blisted), 'bufwinnr(v:val) < 0')
-        " Take the first buffer, if any (could be more intelligent).
-        let bjump = (bhidden + blisted + [-1])[0]
-        if bjump > 0
-          execute 'buffer '.bjump
-        else
-          execute 'enew'.a:bang
-        endif
-      endif
-    endfor
-    execute 'bdelete'.a:bang.' '.btarget
-    execute wcurrent.'wincmd w'
-  endfunction
-  command! -bang -complete=buffer -nargs=? Bclose call <SID>Bclose('<bang>', '<args>')
-  cabbrev bd Bclose
-  cabbrev Bd Bclose
-  cabbrev bD Bclose!
-  cabbrev BD Bclose!
-  cabbrev bd! Bclose!
-  " bugfix end}}}
-endif
-
-" switch to the *scratch* buffer
-nnoremap <leader>bs :enew<CR>
 nnoremap <leader>bn :bnext<CR>
-" like spacemacs `SPC b b` to switch buffer
 nnoremap <leader>bb :bnext<CR>
 nnoremap <leader>bp :bprevious<CR>
 nnoremap <leader>bl :ls<CR>
-" use Bclose to fix bug
-nnoremap <leader>bd :Bclose<CR>
-nnoremap <leader>bk :Bclose<CR>
+nnoremap <leader>bd :bdelete<CR>
 
 " =============================================================================
-" Windows
+" 文件与备份
 " =============================================================================
+set noswapfile
+set nobackup
+set confirm          " 处理未保存/只读文件时弹确认而非报错
+set history=200
 
-" 分割窗口时保持相等的宽/高
-set equalalways
-" 竖直split时,在右边开启
-set splitright
-" 水平split时,在下边开启
-set splitbelow
-
-" =============================================================================
-" Registers
-" =============================================================================
-
-" 保存全局变量
-set viminfo+=!
-
-" 共享外部剪贴板
+" 系统剪贴板：优先 unnamedplus（Linux），回退 unnamed（mac/Windows）
 if has('clipboard')
-  if has('unnamedplus')  " When possible use + register for copy-paste
+  if has('unnamedplus')
     set clipboard=unnamed,unnamedplus
-  else         " On mac and Windows, use * register for copy-paste
+  else
     set clipboard=unnamed
   endif
 endif
 
-" 删除, 但是不放到公共剪切板
-" Use ,d (or ,dd or ,dj or 20,dd) to delete a line without adding it to the
-" yanked stack (also, in visual mode)
-nnoremap <leader>d "_d
-vnoremap <leader>d "_d
-
-" 复制到公共剪切板
-vnoremap <leader>y "+y
-nnoremap <leader>y "+y
-
-" 剪切到公共剪切板
-vnoremap <leader>x "+d
-nnoremap <leader>x "+d
-
-vnoremap <silent> y y`]
-
-" 粘贴时设置nopaste
-nnoremap <leader>p :set paste<cr> "+p :set nopaste<cr>
-nnoremap <leader>P :set paste<cr> "+P :set nopaste<cr>
-vnoremap <leader>p :set paste<cr> "+p :set nopaste<cr>
-vnoremap <leader>P :set paste<cr> "+P :set nopaste<cr>
-
-vnoremap <silent> p p`]
-nnoremap <silent> p p`]
-
-" Paste from unnamed register and fix indentation
-" nmap <leader>p pV`]=
-
-" Repeat the last macro in the `q` register
-nnoremap <leader>2 @q
-
 " =============================================================================
-" Backup
+" 超时（键码快、映射不超时）
 " =============================================================================
-
-" 覆盖文件时不备份
-set nobackup
-set noswapfile
-" 设置备份时的行为为覆盖
-set backupcopy=yes
-
-" 在处理未保存或只读文件的时候，弹出确认
-set confirm
-
-" =============================================================================
-" Filetypes and Custom Autocmds
-" =============================================================================
-augroup vimrcEx
-  " Clear all autocmds for the current group
-  autocmd!
-
-  " Jump to last cursor position unless it's invalid or in an event handler or
-  " a git commit
-  autocmd BufReadPost *
-    \ if &filetype !~ '^git\c' && line("'\"") > 0 && line("'\"") <= line("$") |
-    \   exe "normal! g`\"" |
-    \ endif
-
-  " For all text files set 'textwidth' to 78 characters, if longer than 78, auto
-  " add new line
-  autocmd FileType text setlocal textwidth=78
-
-  " Some file types use real tabs
-  autocmd FileType {make,gitconfig} setlocal noexpandtab shiftwidth=4
-
-  " Treat JSON files like JavaScript
-  autocmd BufNewFile,BufRead *.json setfiletype javascript
-
-  " Make Python follow PEP8
-  autocmd FileType python setlocal softtabstop=4 tabstop=4 shiftwidth=4 textwidth=79
-
-  " Use 4 spaces for Java
-  autocmd FileType java setlocal softtabstop=4 tabstop=4 shiftwidth=4
-
-  " Make sure all markdown files have the correct filetype
-  autocmd BufRead,BufNewFile *.{md,markdown,mdown,mkd,mkdn,txt} setfiletype markdown
-
-  " MultiMarkdown requires 4-space tabs
-  autocmd FileType markdown setlocal softtabstop=4 tabstop=4 shiftwidth=4
-
-  " Use 4-space tabs for apache
-  autocmd FileType apache setlocal softtabstop=4 tabstop=4 shiftwidth=4
-
-  " Leave the return key alone when in command line windows, since it's used
-  " to run commands there
-  autocmd! CmdwinEnter * :unmap <cr>
-  autocmd! CmdwinLeave * :call MapCR()
-
-  " 代码格式优化化
-  if executable('astyle')
-    autocmd BufNewFile,BufRead *.{c,cpp} set formatprg=astyle
-  endif
-augroup END
-
-" =============================================================================
-" Performance
-" =============================================================================
-
-" Optimize for fast terminal connections
-" this option is default in neovim, and removed
-set ttyfast
-
-" Time out on key codes but not mappings
 set notimeout
 set ttimeout
 set ttimeoutlen=100
 
-"==========================================
-" Code folding
-"==========================================
-" 折叠方法
-" manual    手工折叠
-" indent    使用缩进表示折叠
-" expr      使用表达式定义折叠
-" syntax    使用语法定义折叠
-" diff      对没有更改的文本进行折叠
-" marker    使用标记进行折叠, 默认标记是 {{{ 和 }}}
-set foldenable
+" =============================================================================
+" 折叠：默认展开，按缩进折叠
+" =============================================================================
 set foldmethod=indent
-set foldlevel=99
 set foldlevelstart=99
-" 用空格键来开关折叠
-" use zc or zo to fold and unfold code
-" use zM or zR to foldAll or unfoldAll code
 
-"==========================================
-" custom key map
-"==========================================
+" =============================================================================
+" 文件类型相关
+" =============================================================================
+augroup vimrcEx
+  autocmd!
+  " 重新打开文件时回到上次光标位置（git commit 除外）
+  autocmd BufReadPost *
+    \ if &filetype !~# '^git\c' && line("'\"") > 0 && line("'\"") <= line("$") |
+    \   exe "normal! g`\"" |
+    \ endif
+  " 按语言惯例设置缩进
+  autocmd FileType {make,gitconfig} setlocal noexpandtab shiftwidth=4
+  autocmd FileType python setlocal softtabstop=4 tabstop=4 shiftwidth=4
+  autocmd FileType {java,markdown} setlocal softtabstop=4 tabstop=4 shiftwidth=4
+augroup END
 
-nnoremap <silent> <leader>DD :exe ":profile start profile.log"<cr>:exe ":profile func *"<cr>:exe ":profile file *"<cr>
-nnoremap <silent> <leader>DQ :exe ":profile pause"<cr>:noautocmd qall!<cr>
+" =============================================================================
+" 核心习惯键位
+" =============================================================================
+" jk / kj 快速回到 normal 模式
+inoremap jk <Esc>
+inoremap kj <Esc>
 
-" Treat long lines as break lines (useful when moving around in them)
-" set wrap之后，将自动换行的长行当做多行处理, 方便在长行之间跳转.
-nnoremap k gk
+" 按屏幕显示行移动（长行折行时更自然）
 nnoremap j gj
+nnoremap k gk
 
-" remap U to <C-r> for easier redo
+" U 重做，更顺手
 nnoremap U <C-r>
 
-" 设置 jj快速进入normal模式
-inoremap kj <Esc>
-inoremap jk <Esc>
+" Y 复制到行尾，与 D、C 行为一致
+nnoremap Y y$
 
-" 插入模式, 使用ctrl-l跳出右括号
-inoremap <C-l> <Right>
+" 插入模式下用 Ctrl-hjkl 移动光标
 inoremap <C-h> <Left>
+inoremap <C-l> <Right>
 inoremap <C-j> <Down>
 inoremap <C-k> <Up>
-inoremap <C-a> <Esc>_i
-inoremap <C-e> <Esc>g_a
 
-" switch # *
-nnoremap <silent> # *
+" 互换 * / #：默认光标下单词向后搜，改为向前更符合直觉
 nnoremap <silent> * #
+nnoremap <silent> # *
 nnoremap <silent> g* g#
 nnoremap <silent> g# g*
 
-" Move across wrapped lines like regular lines
-noremap 0 ^ " Go to the first non-blank character of a line
-noremap ^ 0 " Just in case you need to go to the very beginning of a line
-
-" {{{全文搜索选中的文字
+" 可视模式搜索选中的文字
 vnoremap * y/<C-R>=escape(@", '\\/.*$^~[]')<CR><CR>
 vnoremap # y?<C-R>=escape(@", '\\/.*$^~[]')<CR><CR>
-" }}}
 
-" 使用Y, 类似于D删除到行尾
-nnoremap Y y$
-
-" Reselect visual block after indent/outdent.调整缩进后自动选中，方便再次操作
+" 缩进后保持选区，方便连续操作
 vnoremap > >gv
 vnoremap < <gv
-
 vnoremap <Tab> >gv
 vnoremap <S-Tab> <gv
 
-" @see http://blog.chinaunix.net/u/8681/showart_1226043.html
-" @usage 50g| jump to 50% of the lines columns.
-nnoremap <expr>g<Bar> '<Esc>'.float2nr(round((col('$')-1)*min([100,v:count])/100.0)).'<Bar>'
+" 十六进制查看 / 还原
+nnoremap <leader>x16 :%!xxd<CR>
+nnoremap <leader>xx16 :%!xxd -r<CR>
 
-nnoremap <F2> :set paste! paste?<CR>
-inoremap <F2> <C-O>:set paste! paste?<CR>
-set pastetoggle=<F2>
-" when in insert mode, press <F4> to go to paste mode, where you can paste mass data that won't be autoindented
-" disbale paste mode when leaving insert mode
-autocmd InsertLeave * set nopaste
-
-"==========================================
-" leader key map
-"==========================================
-
-" ,x16                 十六进制格式查看
-nnoremap <leader>x16 <ESC>:%!xxd<CR>
-
-" ,xx16                返回普通格式
-nnoremap <leader>xx16 <ESC>:%!xxd -r<CR>
-
-"==========================================
-" plugins 插件管理及配置
-"==========================================
-" source default bundles
-if filereadable(expand("~/.vimrc.plugins"))
-  source ~/.vimrc.plugins
-endif
-
-silent! colorscheme molokai
-" set background transparent
-" hi Normal guibg=black ctermbg=NONE
-
-" Go crazy! source user's local config
+" =============================================================================
+" 本机私有配置（不纳入版本管理）
+" =============================================================================
 if filereadable(expand("~/.vimrc.local"))
   source ~/.vimrc.local
 endif
