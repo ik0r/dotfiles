@@ -28,6 +28,15 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   omz_sources+=(--source plugins/macos/macos.plugin.zsh)
 fi;
 
+# tmux plugin: enable when tmux is installed (matches omz's detection-based
+# enablement). This is zero-cost now that install_zsh_zim symlinks the whole omz
+# repo into modules/ohmyzsh, so plugins/tmux is always present — no separate
+# opt-in subtask needed. Like the macOS block, the check runs at `zimfw build`
+# time, so installing tmux later needs a rebuild to take effect.
+if (( ${+commands[tmux]} )); then
+  omz_sources+=(--source plugins/tmux/tmux.plugin.zsh)
+fi;
+
 # Local switch file (git-ignored, written by install.sh plugin subtasks).
 # It may append to omz_sources and/or declare standalone modules. It must be
 # sourced before the ohmyzsh zmodule call so its appends take effect.

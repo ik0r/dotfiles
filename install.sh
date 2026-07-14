@@ -173,7 +173,6 @@ function usage(){
   echo '    - zsh_zim'
   echo '    - zsh_zim_plugins_fzf'
   echo '    - zsh_zim_plugins_git_diff_so_fancy'
-  echo '    - zsh_zim_plugins_omz_tmux'
   echo '    - zsh_zim_plugins_pure'
   echo '    - zsh_zim_plugins_zlua'
   printf "$dot_color_none\n"
@@ -744,7 +743,8 @@ function install_zsh_zim(){
   # modules/ohmyzsh here, BEFORE any build: zimfw sees the dir already exists (a
   # symlink counts) and skips its own clone (section 2), with no effect on how it
   # sources omz plugins. This is the base task, so every zim machine reuses one
-  # clone — not just the ones that ran zsh_zim_plugins_omz_tmux.
+  # clone, and detection-based plugins like tmux (see .zimrc.common) are zero-cost
+  # because plugins/tmux is always present.
   sync_repo "https://github.com/ohmyzsh/ohmyzsh.git" \
             "$APP_PATH/zsh/.cache/ohmyzsh"
   lnif "$APP_PATH/zsh/.cache/ohmyzsh" \
@@ -820,19 +820,6 @@ function install_zsh_zim_plugins_git_diff_so_fancy(){
   util_zimrc_local_append 'zmodule so-fancy/diff-so-fancy'
 
   success "Successfully installed git diff-so-fancy for zim."
-}
-
-function install_zsh_zim_plugins_omz_tmux(){
-  step "Install tmux plugin for zim ..."
-
-  must_program_exists "zsh" \
-                      "tmux"
-
-  # The omz clone + symlink into modules/ohmyzsh is done by install_zsh_zim (the
-  # base task), so this opt-in subtask only declares the tmux plugin source.
-  util_zimrc_local_append 'omz_sources+=(--source plugins/tmux/tmux.plugin.zsh)'
-
-  success "Successfully installed tmux for zim."
 }
 
 function install_zsh_zim_plugins_pure(){
@@ -943,9 +930,6 @@ else
         ;;
       zsh_zim_plugins_git_diff_so_fancy)
         install_zsh_zim_plugins_git_diff_so_fancy
-        ;;
-      zsh_zim_plugins_omz_tmux)
-        install_zsh_zim_plugins_omz_tmux
         ;;
       zsh_zim_plugins_pure)
         install_zsh_zim_plugins_pure
