@@ -23,7 +23,7 @@
 
 - 同一仓库不必 clone 三遍，省空间和带宽。
 - 解耦「获取代码」与「谁来消费」——可以只用 git 那份，完全不启用任何 zsh 插件。
-- **不绑定 homebrew**：新机器只要有 `git` 就能启用插件，无需先装 brew 再装工具。
+- 不绑定 homebrew：新机器只要有 `git` 就能启用插件（详见第 6 节）。
 
 **⚠️ 不要误删**：子任务里 `lnif ... modules/` 那些软链**不是冗余**，它们是
 「共享池 → 各消费端」的接线，和 git 出口、omz 出口平级。
@@ -72,11 +72,11 @@ typeset -ga omz_sources=( --source plugins/sudo/... --source plugins/colored-man
 zmodule ohmyzsh/ohmyzsh "${omz_sources[@]}"          # 单次声明
 ```
 
-开关文件里 fzf/tmux 这类走 ohmyzsh 的插件用 `omz_sources+=(...)` 追加；
+开关文件里 fzf 这类走 ohmyzsh 的插件用 `omz_sources+=(...)` 追加；
 diff-so-fancy/z.lua/pure 这类独立模块直接写自己的 `zmodule` 行。
 
-**顺序要求**：开关文件必须在 `zmodule ohmyzsh` 调用**之前**被 source，追加才生效。
-实测验证：core 的 6 个 source + 开关追加的 fzf = init.zsh 里 7 个 source，且 ohmyzsh 只 clone 一份。
+**顺序要求**：开关文件必须在 `zmodule ohmyzsh` 调用**之前**被 source，追加才生效
+（否则数组已展开，追加不进）。
 
 ## 5. 「开关式」opt-in：跑了子任务才启用，而非装了工具就启用
 
@@ -151,31 +151,24 @@ nvm、cargo、各类下载镜像。omz 和 zim 用户都要，和「用哪套框
 - **幂等接线**：`install_zsh_common` 只往 `~/.zshenv` **幂等追加一行** source 语句
   （`grep -qF` 去重），和 `install_zsh_zim` 往 `~/.zimrc` 追加 source 的手法一致。
 
-**命名约定**：`zsh/.zshrc.common` 里的 `.zshrc` = **zsh 框架无关**的共享 env；各框架自己的
-共享底座 / 按机器开关则用带框架名的后缀，两两对应：omz 走 `.omzrc.common`（追踪）/
-`~/.omzrc.local`（忽略），zim 走 `.zimrc.common`（追踪）/ `~/.zimrc.local`（忽略）。
-`.common` 一律是版本管理的共享底座，`.local` 一律是未追踪、按机器覆盖。
+命名上，`.zshrc.common` 的 `.zshrc` 前缀表示**框架无关**的共享 env，与各框架带名后缀
+（`.omzrc.*` / `.zimrc.*`）并列；`.common`/`.local` 的追踪与否见第 3 节。
 
 ## 10. oh-my-zsh 也用「官方模板 + 注入」，但 plugins 数组必须在 init 前
 
-和 zimfw 一样，omz 的 `~/.zshrc` 直接用**官方模板**（`templates/zshrc.zsh-template`，
-`install_zsh_omz` 从 clone 里 `cp` 一份），保持原样跟随上游，再往里**幂等注入** source 行。
-不再维护一份 fork 的 `zsh/omz/.zshrc`（已删除）。
+和 zimfw 一样，omz 的 `~/.zshrc` 直接用**官方模板**（`install_zsh_omz` 从 clone 里 `cp`
+一份），保持原样跟随上游，再往里**幂等注入** source 行：
 
-加载链：`~/.zshrc`（官方模板）→ 注入一处 source（`.omzrc.common` 再内部 source 开关文件）：
-
-- **pre-init**：`source zsh/omz/.omzrc.common`（追踪）——设 `PATH`、定义 helper、声明
-  **核心零依赖插件**（`plugins=(...)`），并在末尾 `source ~/.omzrc.local`。
-- **post-init**：prompt 定制由 `zsh_omz_cfg` 追加到 `~/.zshrc` **末尾**（在 `source
+- **pre-init**：`source zsh/omz/.omzrc.common`——设 `PATH`、定义 helper、声明核心插件
+  （`plugins=(...)`），并在末尾 `source ~/.omzrc.local`。
+- **post-init**：prompt 定制由 `zsh_omz_cfg` 追加到 `~/.zshrc` **末尾**（`source
   $ZSH/oh-my-zsh.sh` 之后），因为它依赖 omz 加载后的 `$fg_bold` / `$PROMPT`。
 
-**与 zimfw 的关键差异（决定了注入位置）**：zimfw 只在 `zimfw build` 时读 `~/.zimrc`，所以
-`zmodule` 行放文件哪里都行；而 **oh-my-zsh 没有独立 build 步骤**，`source $ZSH/oh-my-zsh.sh`
-在运行时就地读 `plugins` 数组。因此 `.omzrc.common`（及它 source 的 `~/.omzrc.local`）必须
-在 `source $ZSH/oh-my-zsh.sh` **之前**跑完——用 `awk` 匹配该行并在其前插入注入，而非简单末尾追加。
-
-注入靠 `grep -qF` 去重，可反复跑。官方模板里的 `plugins=(git)` 会被 `.omzrc.common`
-里的 `plugins=(...)` **整体重置**，不受影响。
+**与 zimfw 的关键差异（决定注入位置）**：zimfw 只在 `zimfw build` 时读 `~/.zimrc`，`zmodule`
+行放哪都行；而 **oh-my-zsh 无独立 build 步骤**，`source $ZSH/oh-my-zsh.sh` 在运行时就地读
+`plugins` 数组。所以 `.omzrc.common`（及其 source 的 `~/.omzrc.local`）必须在该行**之前**跑完
+——用 `awk` 匹配该行并在其前插入注入，而非末尾追加。注入靠 `grep -qF` 去重可反复跑；模板里的
+`plugins=(git)` 会被 `.omzrc.common` 的 `plugins=(...)` 整体重置。
 
 ## 11. `cp` 前的 `rm -f` 不是多余（专治悬空软链）
 
@@ -208,26 +201,19 @@ fi;
 
 ## 13. zimfw 注释掉模板自带的语法高亮器，只留 fast
 
-zimfw 官方模板（`~/.zimrc`）在末尾自带 `zmodule zsh-users/zsh-syntax-highlighting`，
-而 `zsh/zimfw/.zimrc.common` 里又声明了 `fast-syntax-highlighting`。两者**不是叠加而是
-替代关系**：fast 是 zsh-syntax-highlighting 的「优化+扩展」fork（更快、chroma、内置主题、
-括号/字符串/`$()` 识别更准）。
+zimfw 官方模板（`~/.zimrc`）末尾自带 `zmodule zsh-users/zsh-syntax-highlighting`，而
+`.zimrc.common` 又声明了 `fast-syntax-highlighting`。两者是**替代关系**（fast 是前者的
+「优化+扩展」fork：更快、chroma、内置主题、括号/字符串识别更准），不能叠加。
 
-**为什么不能两个都留**：二者机制相同——都靠包裹 ZLE widget + 往 `region_highlight` 写颜色。
-同时加载会**每次敲键各算一遍**，按 hook 注册顺序后者覆盖前者的绘制，前者纯属空跑浪费
-（和「追求启动/输入速度」相悖）。构建顺序上 `.zimrc.common` 在模板行之后 source，所以
-实际生效的一直是 fast，模板那行只是在做无用功，还违反了 z-sy-h「必须最后 source」的契约。
+**为什么不能两个都留**：二者机制相同——包裹 ZLE widget + 往 `region_highlight` 写颜色。同时
+加载会每次敲键各算一遍，按 hook 注册顺序后者覆盖前者，前者纯属空跑浪费。构建顺序上
+`.zimrc.common` 在模板行之后 source，实际生效的一直是 fast，模板那行只是做无用功。
 
-**处理方式**：`install_zsh_zim` 用 `awk` 把模板生成的那行**注释掉**（而非删除），只保留
-fast。做成注释而非删除，是为了**保留可回退性**——将来 fast 版本出问题时，取消注释即可切回
-官方 z-sy-h。幂等：`grep -qE` 只匹配「未被注释的活跃行」，重复跑是 no-op。
+**处理方式**：`install_zsh_zim` 用 `awk` 把模板生成的那行**注释掉**（而非删除），保留可回退性
+——将来 fast 出问题，取消注释即可切回官方 z-sy-h。幂等：`grep -qE` 只匹配未注释的活跃行。
 
-- **为什么不改 `.zimrc.common` 删 fast**：那样虽只改一行，但会丢掉 fast 的增强特性；
-  当前诉求是「继续用 fast」，所以选择动模板侧。这是本仓「模板保持原样」原则的**例外**，
-  理由是模板这行和我们的 fast **功能冲突**、非留不可地二选一。
-- **omz 侧未跟改**：omz 底座（`.omzrc.common`）仍用 zsh-syntax-highlighting。两套框架
-  高亮器暂不统一是有意的——omz 换 fast 需额外 clone F-Sy-H 进 custom/plugins，成本更高，
-  且 omz 侧无「双高亮器」问题，没有非改不可的理由。
+这是本仓「模板保持原样」原则的**有意例外**（模板这行和 fast 功能冲突、非二选一不可）。omz 侧
+未跟改：omz 底座仍用 zsh-syntax-highlighting，换 fast 需额外 clone F-Sy-H 且 omz 无双高亮器问题。
 
 ## 14. omz / zimfw 底座插件的对齐（哪些拉平、哪些有意不齐）
 
