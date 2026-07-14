@@ -25,6 +25,7 @@ All available tasks:
 - [vim_plugins](#task-vim_plugins)
 - [vim_plugins_fcitx](#task-vim_plugins_fcitx)
 - [nvim](#task-nvim)
+- [zsh_common](#task-zsh_common)
 - [zsh_omz](#task-zsh_omz)
 - [zsh_omz_cfg](#task-zsh_omz_cfg)
 - [zsh_omz_plugins_fzf](#task-zsh_omz_plugins_fzf)
@@ -290,6 +291,22 @@ You can do a specific task by run
 
     Symlink the `nvim/` config to `~/.config/nvim` and run `Lazy sync` to
     install plugins. This config is based on [lazy.nvim](https://github.com/folke/lazy.nvim).
+
+- ### Task `zsh_common`
+    Requirement(s): `zsh`
+
+    Wire the shared, framework-agnostic zsh env
+    ([`zsh/.zshrc.common`](zsh/.zshrc.common)) into `~/.zshenv` via a single
+    idempotent `source` line.
+
+    This file holds env that both oh-my-zsh and zimfw users want regardless of
+    framework: homebrew mirrors and `brew shellenv`, nvm, cargo, and various
+    download mirrors. It is sourced from `~/.zshenv` (not a framework rc) so it
+    loads **before** `~/.zshrc` — the omz `.zshrc` gates plugins on whether
+    tools like `git`/`tmux` are on `PATH`, which needs `brew shellenv` to have
+    run first.
+
+    Run this once before `zsh_omz` or `zsh_zim`.
 
 - ### Task `zsh_omz`
     Requirement(s): `git`, `zsh`

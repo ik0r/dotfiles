@@ -164,6 +164,7 @@ function usage(){
   echo '    - vim_plugins'
   echo '    - vim_plugins_fcitx'
   echo '    - nvim'
+  echo '    - zsh_common'
   echo '    - zsh_omz'
   echo '    - zsh_omz_cfg'
   echo '    - zsh_omz_plugins_git_diff_so_fancy'
@@ -546,6 +547,26 @@ function install_nvim(){
   success "Successfully installed nvim"
 }
 
+function install_zsh_common(){
+
+  must_program_exists "zsh"
+
+  step "Installing shared zsh env (.zshrc.common) ..."
+
+  # .zshrc.common is framework-agnostic env (brew shellenv, nvm, cargo, download
+  # mirrors). It must load before any framework rc, because the omz .zshrc gates
+  # plugins on `is_program_exists git/tmux/...`, which needs brew's PATH first.
+  # ~/.zshenv is owned by neither framework and is sourced before ~/.zshrc, so we
+  # wire it in there (same place the fzf tasks write FZF_BASE).
+  local zshrc_common="$APP_PATH/zsh/.zshrc.common"
+  if ! grep -qF "$zshrc_common" "$HOME/.zshenv" &>/dev/null ; then
+    echo "[[ -e \"$zshrc_common\" ]] && source \"$zshrc_common\"" >> "$HOME/.zshenv"
+  fi;
+
+  success "Successfully installed shared zsh env."
+  success "Please open a new zsh terminal to make configs go into effect."
+}
+
 function install_zsh_omz(){
 
   must_program_exists "zsh"
@@ -821,6 +842,9 @@ else
         ;;
       nvim)
         install_nvim
+        ;;
+      zsh_common)
+        install_zsh_common
         ;;
       zsh_omz)
         install_zsh_omz

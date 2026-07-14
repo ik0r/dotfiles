@@ -123,7 +123,26 @@ zmodule le0me55i/zsh-extract --source extract.plugin.zsh
 所以「用 brew 装了 git-extras」和「启用 omz git-extras 插件」**不冲突、可叠加**：
 前者给你命令，后者给你补全。
 
-## 9. 刻意并存 oh-my-zsh 和 zimfw 两套 zsh 任务
+## 9. `.zshrc.common` 从 `~/.zshenv` 加载，而非任何框架的 rc
+
+`zsh/.zshrc.common` 是**与框架无关**的共享环境：homebrew 镜像 + `brew shellenv`、
+nvm、cargo、各类下载镜像。omz 和 zim 用户都要，和「用哪套框架」无关。
+
+**为什么挂在 `~/.zshenv` 而不是 `~/.zshrc` / `.zimrc.common`**：
+
+- **加载顺序**：zsh 启动时 `~/.zshenv` 早于 `~/.zshrc`。omz 的 `.zshrc` 用
+  `is_program_exists git/tmux/lua` 来决定启用哪些插件（见 `zsh/omz/.zshrc`），
+  这些判断依赖 `brew shellenv` 已经把 brew 的 bin 加进 `PATH`。所以 env 必须在
+  框架 rc **之前**跑完，`~/.zshenv` 正是这个时机。
+- **框架中立**：挂在 `~/.zshenv` 而非某套框架的 rc，omz / zim 两条路径都能吃到同一份
+  env，不必各写一遍。这也是 `fzf` 子任务把 `FZF_BASE` 写进 `~/.zshenv` 的同一处出口。
+- **幂等接线**：`install_zsh_common` 只往 `~/.zshenv` **幂等追加一行** source 语句
+  （`grep -qF` 去重），和 `install_zsh_zim` 往 `~/.zimrc` 追加 source 的手法一致。
+
+**命名约定**：`.zshrc.common` 里的 `.common` 与 `.zimrc.common` 对齐——都是版本管理的
+共享底座；对应的按机器覆盖仍走 `~/.zshrc.local`（omz）/ `~/.zimrc.local`（zim）。
+
+## 10. 刻意并存 oh-my-zsh 和 zimfw 两套 zsh 任务
 
 `install.sh` 同时保留 `zsh_omz_*` 和 `zsh_zim_*` 两组任务，**是有意为之，不是没清理干净**。
 
