@@ -596,7 +596,7 @@ function install_zsh_omz(){
   if ( ! is_file_exists "$zshrc" ); then
     # ! is_file_exists is true for a dangling symlink too (old installs linked
     # ~/.zshrc to the now-deleted fork). rm it first, else cp follows the broken
-    # link and writes to its missing target. See docs/DESIGN.md section 10.
+    # link and writes to its missing target. See docs/DESIGN.md section 11.
     rm -f "$zshrc"
     cp "$omz_template" "$zshrc"
   fi;

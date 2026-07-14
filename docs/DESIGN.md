@@ -44,20 +44,20 @@
 手动软链负责把代码放到位，`zmodule` 负责声明启用，zimfw 看到目录已在就跳过自己的
 clone，两者不冲突。tmux 走 ohmyzsh 的场景同样实测无冲突。
 
-## 3. zimfw 配置分层：`.zimrc.common`（追踪）+ `~/.zimrc.local`（开关）
+## 3. 配置分层：`.common`（追踪）+ `.local`（按机器开关）
 
-加载链：`~/.zimrc`（zimfw 生成）→ source `zsh/zimfw/.zimrc.common` → source `~/.zimrc.local`。
+两套框架用同一套命名约定：`.common` = 版本管理的共享底座，`.local` = git-ignored、
+按机器覆盖（放在 home，天然不追踪）。zimfw 侧的加载链：
 
-- **`~/.zimrc`**：zimfw 安装时生成，**保持原样、跟着上游模板走**，不手动维护，避免
-  和官方更新 diverge。`install_zsh_zim` 只往它末尾**幂等追加一行** source 语句。
-- **`zsh/zimfw/.zimrc.common`**（被 git 追踪）：单一真理源。声明**共享、无依赖**的核心
-  模块（sudo/colored-man-pages/copy*/dirhistory/fast-syntax-highlighting/zsh-extract）。
-- **`~/.zimrc.local`**（git-ignored，在 home、天然不追踪）：**按机器的开关文件**。
-  `zsh_zim_plugins_*` 子任务通过 `util_zimrc_local_append` 往这里写启用行。
+`~/.zimrc`（zimfw 生成）→ source `zsh/zimfw/.zimrc.common` → source `~/.zimrc.local`。
 
-**命名约定**（与 `zsh/.zshrc.common` 对齐）：`.common` = 版本管理的共享底座，
-`.local` = 未追踪、按机器覆盖。曾经这个文件错误地叫 `.zimrc.local`（追踪却用了
-表示「本地」的后缀，还和 README 提到的 `~/.zimrc.local` 重名），已改名为 `.zimrc.common`。
+- **`~/.zimrc`**：zimfw 安装时生成，**保持原样、跟着上游模板走**，不手动维护（避免和官方
+  更新 diverge）。`install_zsh_zim` 只往它末尾**幂等追加一行** source 语句。
+- **`zsh/zimfw/.zimrc.common`**（追踪）：单一真理源，声明**共享、无依赖**的核心模块。
+- **`~/.zimrc.local`**（git-ignored）：按机器开关文件，`zsh_zim_plugins_*` 子任务通过
+  `util_zimrc_local_append` 往这里写启用行。
+
+omz 侧命名一一对应：`.omzrc.common`（追踪）/ `~/.omzrc.local`（忽略），详见第 9 节。
 
 ## 4. oh-my-zsh 只能声明一次 → 用数组累积
 
@@ -78,16 +78,28 @@ diff-so-fancy/z.lua/pure 这类独立模块直接写自己的 `zmodule` 行。
 **顺序要求**：开关文件必须在 `zmodule ohmyzsh` 调用**之前**被 source，追加才生效。
 实测验证：core 的 6 个 source + 开关追加的 fzf = init.zsh 里 7 个 source，且 ohmyzsh 只 clone 一份。
 
-## 5. 「开关式」插件：跑了子任务才启用，而非装了工具就启用
+## 5. 「开关式」opt-in：跑了子任务才启用，而非装了工具就启用
 
-设计诉求：**即使某工具在别处装了，也不一定要在 zsh 里启用它的插件**。
+设计诉求：**即使某工具在别处装了，也不一定要在 zsh 里启用它的插件**。判断依据是「你是否
+跑过对应子任务」（意图），而非「工具是否存在」。所以 fzf/diff-so-fancy/z.lua/pure 的启用行
+写进按机器的 `.local` 开关文件，没跑子任务就不在那台机器启用。
 
-- 判断依据是「**你是否跑过对应子任务**」（意图），而非「工具是否存在」（`${+commands}`）。
-- 所以 fzf/diff-so-fancy/z.lua/pure/tmux 的启用行写进按机器的 `~/.zimrc.local`，
-  没跑子任务就不在那台机器启用。
-- 反例：无条件写进 `.zimrc.common` 会导致「每台机器都启用」，失去手动控制。
+两套框架的分层一一对应：
 
-（注：`.zimrc.common` 里的核心零依赖插件是**有意无条件启用**的，属于「总是想要」的底座。）
+| | zimfw | oh-my-zsh |
+|---|---|---|
+| 追踪底座（总是启用） | `.zimrc.common` 的 `zmodule` | `.omzrc.common` 的 `plugins=(...)` |
+| 累积变量 | `omz_sources` 数组 | `plugins` 数组 |
+| 按机器开关（git-ignored） | `~/.zimrc.local` | `~/.omzrc.local` |
+| 开关追加写法 | `zmodule ...` / `omz_sources+=(...)` | `plugins+=(...)` |
+| 追加辅助函数 | `util_zimrc_local_append` | `util_omzrc_local_append` |
+
+- **核心零依赖插件**（colored-man-pages / extract / sudo / 高亮器等）无条件写在 `.common`，
+  是「总是想要」的底座。
+- **例外（有意保留自动探测）**：git/gitfast、tmux 按「装了就启用」，osx/macos 按平台判断。
+  这些几乎必用、或启用零成本，作为底座一部分更省事，不强制 opt-in（底座对齐详见第 14 节）。
+- **`~/.local` 是纯 pre-init 插件开关**：不放个人配置或 prompt。prompt 这类 post-init 配置
+  追加到 `~/.zshrc` 末尾（依赖框架加载后的变量，见第 10 节）。
 
 ## 6. 不绑定 homebrew
 
@@ -165,39 +177,9 @@ nvm、cargo、各类下载镜像。omz 和 zim 用户都要，和「用哪套框
 注入靠 `grep -qF` 去重，可反复跑。官方模板里的 `plugins=(git)` 会被 `.omzrc.common`
 里的 `plugins=(...)` **整体重置**，不受影响。
 
-## 11. omz 的插件启用也做成「开关式」opt-in（对齐第 5 节 zimfw）
+## 11. `cp` 前的 `rm -f` 不是多余（专治悬空软链）
 
-第 5 节定下的诉求——**跑了子任务才启用，而非工具存在就启用**——现在 omz 也照做了，分层与
-zimfw 一一对应：
-
-| | zimfw | oh-my-zsh |
-|---|---|---|
-| 追踪底座（总是启用） | `.zimrc.common` 里的 `zmodule` | `.omzrc.common` 里的 `plugins=(...)` |
-| 累积变量 | `omz_sources` 数组 | `plugins` 数组 |
-| 按机器开关（git-ignored） | `~/.zimrc.local` | `~/.omzrc.local` |
-| 开关追加写法 | `zmodule ...` / `omz_sources+=(...)` | `plugins+=(...)` |
-| 追加辅助函数 | `util_zimrc_local_append` | `util_omzrc_local_append` |
-
-- **核心零依赖插件**（colored-man-pages / extract / sudo / zsh-syntax-highlighting 等）
-  无条件写在 `.omzrc.common`，是「总是想要」的底座。
-- **可选插件** fzf / diff-so-fancy / z.lua 改为 opt-in：`zsh_omz_plugins_*` 子任务通过
-  `util_omzrc_local_append` 往 `~/.omzrc.local` 写 `plugins+=(...)`，没跑子任务就不启用——
-  **即便该工具因别的原因已装在机器上**。
-- **例外（有意保留自动探测）**：git/gitfast/git-extras、tmux 仍按
-  `is_program_exists` 存在即启用；osx 按平台判断。这些要么几乎必用、要么零安装成本，作为
-  底座的一部分更省事，不强制 opt-in。
-
-**为什么 omz 之前不是 opt-in**：旧版 `.omzrc.common` 对 fzf/diff-so-fancy/z.lua 也用
-`is_program_exists` / `is_custom_plugin_exists` 探测，「装了就启用」，和第 5 节诉求相悖。
-本次把这三块探测删掉，改成读 `~/.omzrc.local` 的开关。
-
-**命名 / 出口修正**：旧版把 omz 的 `~/.omzrc.local` 当「个人配置 + prompt」的 post-init 文件
-（更早还错叫过被追踪的 `zsh/omz/.zshrc.local`）。现在 `~/.omzrc.local` 语义收敛为**纯 pre-init
-插件开关**（对齐 `~/.zimrc.local`）；prompt 这类 post-init 配置改追加到 `~/.zshrc` 末尾。个人
-其它 post-init 配置也放 `~/.zshrc` 末尾即可。
-
-**⚠️ `cp` 前的 `rm -f` 不是多余（专治悬空软链）**：`install_zsh_omz` 里这段常被误读——
-「都判断文件不存在了，为什么还 `rm -f`」：
+`install_zsh_omz` 里这段常被误读——「都判断文件不存在了，为什么还 `rm -f`」：
 
 ```sh
 if ( ! is_file_exists "$zshrc" ); then   # is_file_exists 用 [[ -e ]]
@@ -206,18 +188,13 @@ if ( ! is_file_exists "$zshrc" ); then   # is_file_exists 用 [[ -e ]]
 fi;
 ```
 
-关键在**旧版**：更早的 `install_zsh_omz` 用 `lnif` 把 `~/.zshrc` 软链到 fork 的
-`zsh/omz/.zshrc`；后来重构把该 fork **删了**。于是跑过旧版的机器上，`~/.zshrc` 是一条指向
-已删除文件的**悬空软链**。
+跑过旧版的机器上 `~/.zshrc` 可能是指向已删除 fork 的**悬空软链**：`[[ -e ]]` 检查的是软链
+**指向的目标**，目标已删 → 返回假 → 进入 if 分支（实测：悬空软链 `[[ -e ]]`=false 而
+`[[ -L ]]`=true）。此时若不 `rm` 直接 `cp`，`cp` 会**跟随软链**把内容写到那个不存在的目标
+路径上，`~/.zshrc` 本身仍是坏软链——安装等于没生效。所以先 `rm -f` 摘掉坏软链再 `cp`。
 
-- `[[ -e ]]` 检查的是软链**指向的目标**，目标已删 → 返回**假** → `! is_file_exists` 为真，
-  进入 if 分支（实测：悬空软链 `[[ -e ]]`=false 而 `[[ -L ]]`=true）。
-- 此时若**不** `rm` 直接 `cp`，`cp` 会**跟随软链**把内容写到那个「不存在的目标」路径上，
-  凭空造出目标文件，而 `~/.zshrc` 本身仍是坏软链——安装等于没生效（实测复现）。
-- 所以先 `rm -f` 摘掉坏软链，再 `cp` 出一个真正的 regular file。
-
-三种情况一并覆盖：真实文件已存在 → 跳过、不覆盖用户配置；悬空软链（旧装遗留）→ 清掉再 cp；
-完全不存在 → `rm -f` 空操作后 cp。
+三种情况一并覆盖：真实文件已存在 → 跳过、不覆盖用户配置；悬空软链 → 清掉再 cp；完全不存在
+→ `rm -f` 空操作后 cp。
 
 ## 12. 刻意并存 oh-my-zsh 和 zimfw 两套 zsh 任务
 
@@ -252,72 +229,43 @@ fast。做成注释而非删除，是为了**保留可回退性**——将来 fa
   高亮器暂不统一是有意的——omz 换 fast 需额外 clone F-Sy-H 进 custom/plugins，成本更高，
   且 omz 侧无「双高亮器」问题，没有非改不可的理由。
 
-（附带修正：`.omzrc.common` 曾无条件启用 omz 自带的 `z` 目录跳转，与 opt-in 的 `z.lua`
-重叠——同机器会跑两个跳转数据库。已删掉底座里的 `z`，目录跳转统一由 `zsh_omz_plugins_zlua`
-的 opt-in `z.lua` 提供，和 zimfw 侧对齐。）
-
 ## 14. omz / zimfw 底座插件的对齐（哪些拉平、哪些有意不齐）
 
-两套框架的「无条件底座」曾有若干可对齐却不齐的差异，逐条核对后做了如下处理。
+两套框架的「无条件底座」曾有若干可对齐却不齐的差异，逐条核对后处理如下。
 
 **已拉平**：
 
-- **copypath / copyfile / copybuffer / dirhistory**：这几个是 omz 自带插件，zimfw 早已
-  通过 `omz_sources` 用上了，omz 自己的底座反而漏了（借给 zim 却没给自己）。已补进
-  `.omzrc.common` 的 `plugins=(...)`。
+- **copy* / dirhistory**：copypath/copyfile/copybuffer/dirhistory 是 omz 自带插件，zimfw 早已
+  通过 `omz_sources` 用上，omz 自己底座反而漏了（借给 zim 却没给自己）。已补进 `.omzrc.common`。
 - **encode64**：omz 底座有、zimfw 没有。已加进 `.zimrc.common` 的 `omz_sources`。
-- **macos**：omz 按 `$OSTYPE` 启用 `osx`（新版 omz 已更名 `macos`），zimfw 没有。已在
-  `.zimrc.common` 里按 `$OSTYPE == darwin*` 追加 `plugins/macos/macos.plugin.zsh`。
-- **tmux**：改为两边都「检测安装即启用」。omz 一直是 `is_program_exists tmux` 即启用；zimfw
-  原先必须走 opt-in 子任务 `zsh_zim_plugins_omz_tmux`，**唯一原因**是当时 omz 仓库不保证在位、
-  子任务得顺带 clone。现在底座 `install_zsh_zim` 已把 omz 软链进 `modules/ohmyzsh`，`plugins/tmux`
-  恒在，启用 tmux 变成零成本，于是 `.zimrc.common` 里按 `(( ${+commands[tmux]} ))` 检测追加
-  `omz_sources`，并**删掉整个 `zsh_zim_plugins_omz_tmux` 子任务**（及其 help/case 引用）。
-  同 macos，检测在 `zimfw build` 时求值，装了 tmux 后需重新 build 才生效。
-- **autosuggestions 的 emacs guard**：见下，改为两边都无条件启用。
+- **macos**：omz 按 `$OSTYPE` 启用 `osx`（新版 omz 更名 `macos`），已在 `.zimrc.common` 里按
+  `$OSTYPE == darwin*` 追加。
+- **tmux**：两边都改「检测安装即启用」。omz 一直如此；zimfw 曾必须走 opt-in 子任务，唯一原因
+  是当时 omz 仓库不保证在位、子任务得顺带 clone。现在底座已把 omz 软链进 `modules/ohmyzsh`
+  （见下），`plugins/tmux` 恒在、启用零成本，于是 `.zimrc.common` 按 `${+commands[tmux]}` 检测
+  追加，并删掉整个 `zsh_zim_plugins_omz_tmux` 子任务。同 macos，检测在 build 时求值。
+- **z 目录跳转**：`.omzrc.common` 曾无条件启用 omz 自带的 `z`，与 opt-in 的 `z.lua` 重叠（同机器
+  跑两个跳转数据库）。已删底座里的 `z`，统一由 `zsh_omz_plugins_zlua` 的 opt-in `z.lua` 提供。
+- **autosuggestions 的 emacs guard**：见下。
 
-**zimfw 用的 omz 仓库：底座手动 clone 到 `.cache` 再软链，以复用共享池**：`install_zsh_zim`
-（底座任务）会 `sync_repo` 把 omz clone 到 `.cache/ohmyzsh`，再 `lnif` 软链到
-`zimfw/modules/ohmyzsh`。sudo/colored-man-pages/copy*/encode64/macos 等所有 omz 插件文件都
-经这条软链被 zimfw source，`omz_sources` 里新增插件因此零成本（仓库已在）。
+**底座手动 clone omz 到 `.cache` 再软链，以复用共享池**：`install_zsh_zim` 用
+`sync_repo`+`lnif` 把 omz clone 到 `.cache/ohmyzsh` 并软链到 `zimfw/modules/ohmyzsh`。若不这么做，
+`zmodule ohmyzsh/ohmyzsh` 会让 zimfw 在 build 时**自己 clone 一份**，和 `zsh_omz` 在 `.cache` 的
+那份重复落地——违背第 1 节共享池原则。软链对 zimfw 无影响（第 2 节：见目录已在即跳过 clone、
+沿软链 source）。放在**底座**而非 tmux 子任务，是因为 sudo/copy*/encode64 等核心插件都依赖它，
+不能只在跑过 tmux 子任务的机器上才有。
 
-- **为什么不让 zimfw 自己 clone**：`.zimrc.common` 末尾的 `zmodule ohmyzsh/ohmyzsh` 若不管，
-  zimfw 会在 `build` 时把 omz **自己 clone 一份**到 `modules/ohmyzsh`。可 `zsh_omz` 那边又在
-  `.cache/ohmyzsh` clone 了一份——**同一个 omz 仓库落地两份**，违背第 1 节「一份 clone 供多方
-  复用」的共享池原则。改成底座手动 clone 到 `.cache` + 软链后，omz / zimfw 共用同一份。
-- **为什么软链对 zimfw 无影响**：`build` 前软链已就位，zimfw 见 `modules/ohmyzsh` 目录已存在
-  （软链也算存在），跳过自己的 clone、直接沿软链 source 插件（第 2 节实测结论）。实测：迁移成
-  软链后 `zimfw build`，软链保持不变、omz 插件文件照常 source。
-- **为什么放在底座而非 tmux 子任务**：这套 clone+软链原先错放在可选的
-  `zsh_zim_plugins_omz_tmux` 里，导致「只有跑过 tmux 子任务的机器才有 omz 仓库」，而底座的
-  6 个核心插件其实都依赖它。提到 `install_zsh_zim` 后，每台装了 zimfw 的机器都复用同一份 clone，
-  tmux 子任务瘦身为只追加 `omz_sources+=(--source plugins/tmux/...)`。
-
-**autosuggestions：改为两边都无条件启用**：
-
-`.omzrc.common` 原本用 `if [[ "$INSIDE_EMACS" == "" ]]` 把 autosuggestions 在 emacs 终端里
-禁掉（emacs 里渲染不出灰色建议）。想让 zimfw 也一致，却发现 **zimfw 做不到同款 guard**：
-
-- omz 的 `plugins=(...)` 是**每次开 shell 运行时**读的，`if` 每次求值，能按当前是否在 emacs 里
-  动态决定 —— guard 天然有效。
-- zimfw 只在 `zimfw build` 时读 `~/.zimrc` / `.zimrc.common`，生成静态的 `init.zsh`；每次开
-  shell 只 `source init.zsh`（见 `~/.zshrc`），**运行时不再做任何条件判断**。在 `.zimrc.common`
-  里包 `if` 只会在 build 那一刻求值一次（build 时不在 emacs，就永远启用），起不到 per-shell
-  guard 的作用。要真按 shell 判断，只能在 `~/.zshrc` 的 `source init.zsh` 之后写逻辑去**卸载**
-  已加载的插件，既侵入 `~/.zshrc` 又比不加载更脏。
-
-**结论**：既然作者已不用 emacs，这个 guard 属于过时顾虑。与其在 zimfw 侧硬做脏实现，不如
-**去掉 omz 的 guard**，两边都无条件启用 autosuggestions —— 这才是真正的一致。若将来又要在
-emacs 里用，再单独处理，不必为此保留一处两框架无法对齐的逻辑。
+**autosuggestions：改为两边都无条件启用**：`.omzrc.common` 原本用 `$INSIDE_EMACS` guard 在 emacs
+终端里禁用它（灰色渲染不对）。但 zimfw 做不到同款 guard——它只在 `zimfw build` 时读配置生成静态
+`init.zsh`，运行时不再判断，`.zimrc.common` 里的 `if` 只在 build 那一刻求值一次。既然作者已不用
+emacs，这个 guard 属过时顾虑，于是**去掉 omz 的 guard**、两边都无条件启用，才是真正的一致。
 
 **有意保持不齐**（结构性差异，非乱）：
 
-- **git 别名**：omz 用 `git`/`gitfast`，zimfw 用模板自带的 `git`+`git-info`。别名集不同但都是
-  「git 增强」，各框架惯例，强统一无收益。
+- **git 别名**：omz 用 `git`/`gitfast`，zimfw 用模板自带的 `git`+`git-info`。都是「git 增强」的
+  各框架惯例，强统一无收益。
 - **prompt 主题**：omz robbyrussell + user 前缀 vs zimfw asciiship / pure，本就各用各的。
-- **git-extras 的「自动探测」**：omz 里 `git-extras` 插件按 `is_program_exists git` +
-  `is_program_exists git-extras` 双检测启用（需 brew 装命令本体 + omz 插件补全，见第 8 节）；
-  zimfw 侧未提供对应补全。这属于「插件来源/依赖形态不同」导致的结构差异（已在第 5、8、11 节
-  说明），不当作不一致去消除。（tmux 曾与此并列，现已因底座 clone 复用而拉平，见上。）
+- **git-extras**：omz 有插件补全（双 `is_program_exists` 检测，见第 8 节），zimfw 侧未提供。属
+  「插件来源不同」的结构差异。
 - **extract**：omz 用自带 `extract`，zimfw 用第三方 `le0me55i/zsh-extract`（第 7 节）。行为一致、
   来源不同，不值得为对齐而改。
