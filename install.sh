@@ -141,13 +141,6 @@ function sync_repo(){
   fi;
 }
 
-function util_must_python_pipx_exists(){
-  if ( ! is_program_exists pip ) && ( ! is_program_exists pip2 ) && ( ! is_program_exists pip3 ); then
-    error "You must have installed pip or pip2 or pip3 for installing python packages."
-    exit 1
-  fi;
-}
-
 ########## Steps setup
 
 function usage(){
@@ -175,7 +168,6 @@ function usage(){
   echo '    - zsh_omz_cfg'
   echo '    - zsh_omz_plugins_git_diff_so_fancy'
   echo '    - zsh_omz_plugins_fzf'
-  echo '    - zsh_omz_plugins_thefuck'
   echo '    - zsh_omz_plugins_zlua'
   echo '    - zsh_zim'
   echo '    - zsh_zim_plugins_fzf'
@@ -650,27 +642,6 @@ function install_zsh_omz_plugins_fzf(){
   success "Successfully installed fzf plugin."
 }
 
-function install_zsh_omz_plugins_thefuck(){
-  step "Installing thefuck plugin for oh-my-zsh ..."
-
-  # add zsh plugin thefuck support
-  util_must_python_pipx_exists
-
-  if ( is_program_exists pip3 ); then
-    pip3 install --user --upgrade thefuck
-  elif ( is_program_exists pip2 ); then
-    pip2 install --user --upgrade thefuck
-  elif ( is_program_exists pip ); then
-    pip install --user --upgrade thefuck
-  fi;
-
-  mkdir -p "$APP_PATH/zsh/.cache/ohmyzsh/custom/plugins/thefuck"
-  echo 'eval "$(thefuck --alias)"' > "$APP_PATH/zsh/.cache/ohmyzsh/custom/plugins/thefuck/thefuck.plugin.zsh"
-
-  success "Successfully installed thefuck plugin."
-  success "Please open a new zsh terminal to make configs go into effect."
-}
-
 function install_zsh_omz_plugins_zlua(){
   must_program_exists "zsh" \
                       "lua"
@@ -866,9 +837,6 @@ else
         ;;
       zsh_omz_plugins_fzf)
         install_zsh_omz_plugins_fzf
-        ;;
-      zsh_omz_plugins_thefuck)
-        install_zsh_omz_plugins_thefuck
         ;;
       zsh_omz_plugins_zlua)
         install_zsh_omz_plugins_zlua

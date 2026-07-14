@@ -29,7 +29,6 @@ All available tasks:
 - [zsh_omz_cfg](#task-zsh_omz_cfg)
 - [zsh_omz_plugins_fzf](#task-zsh_omz_plugins_fzf)
 - [zsh_omz_plugins_git_diff_so_fancy](#task-zsh_omz_plugins_git_diff_so_fancy)
-- [zsh_omz_plugins_thefuck](#task-zsh_omz_plugins_thefuck)
 - [zsh_omz_plugins_zlua](#task-zsh_omz_plugins_zlua)
 - [zsh_zim](#task-zsh_zim)
 - [zsh_zim_plugins_fzf](#task-zsh_zim_plugins_fzf)
@@ -320,7 +319,6 @@ You can do a specific task by run
     | git-extras               | [task git_extras](#task-git_extras)                   |                                                |
     | httpie                   | httpie                                                |                                                |
     | mosh                     | mosh                                                  |                                                |
-    | thefuck                  | [task zsh_omz_plugins_thefuck](#task-zsh_omz_plugins_thefuck) |                                                |
     | tmux                     | tmux                                                  |                                                |
     | z.lua                    | [task zsh_omz_plugins_zlua](#task-zsh_omz_plugins_zlua)|                                                |
     | osx                      | OS X                                                  |                                                |
@@ -342,11 +340,6 @@ You can do a specific task by run
     Requirement(s): `git`, `zsh`, [task zsh_omz](#task-zsh_omz)
 
     Install oh-my-zsh plugin support for git [diff-so-fancy](https://github.com/so-fancy/diff-so-fancy)
-
-- ### Task `zsh_omz_plugins_thefuck`
-    Requirement(s): `git`, `zsh`, [task zsh_omz](#task-zsh_omz)
-
-    Install oh-my-zsh plugin [`thefuck`](https://github.com/nvbn/thefuck)
 
 - ### Task `zsh_omz_plugins_zlua`
     Requirement(s): `git`, `zsh`, `lua`

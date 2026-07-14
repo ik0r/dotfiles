@@ -160,14 +160,6 @@ if ( is_program_exists mosh ); then
   )
 fi;
 
-# if we have thefuck installed, add thefuck plugin
-if ( is_program_exists thefuck ); then
-  plugins=(
-    $plugins
-    thefuck
-  )
-fi;
-
 # if we have tmux installed, add tmux plugin
 if ( is_program_exists tmux ); then
   plugins=(
