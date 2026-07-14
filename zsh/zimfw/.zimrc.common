@@ -1,22 +1,27 @@
-zmodule so-fancy/diff-so-fancy
+# Shared zimfw modules (single source of truth, version-controlled).
+# Loaded from ~/.zimrc via a source line added by the zsh_zim task.
+
+# fast-syntax-highlighting and zsh-extract are always enabled (no deps).
 zmodule zdharma-continuum/fast-syntax-highlighting
 zmodule le0me55i/zsh-extract --source extract.plugin.zsh
 
-# z.lua needs the lua runtime; enable only when it's installed
-(( ${+commands[lua]} )) && zmodule skywind3000/z.lua
+# oh-my-zsh can only be declared once, so accumulate its plugin sources in an
+# array here (core, no-dep plugins) and let the switch file append more before
+# the single zmodule call at the bottom.
+#   sudo (Esc Esc), colored-man-pages, copypath/copyfile,
+#   copybuffer (Ctrl-O), dirhistory (Alt-arrows)
+typeset -ga omz_sources=(
+  --source plugins/sudo/sudo.plugin.zsh
+  --source plugins/colored-man-pages/colored-man-pages.plugin.zsh
+  --source plugins/copypath/copypath.plugin.zsh
+  --source plugins/copyfile/copyfile.plugin.zsh
+  --source plugins/copybuffer/copybuffer.plugin.zsh
+  --source plugins/dirhistory/dirhistory.plugin.zsh
+)
 
-# oh-my-zsh plugins: sudo (Esc Esc), colored-man-pages, and clipboard/dir
-# helpers (copypath, copyfile, copybuffer=Ctrl-O, dirhistory=Alt-arrows) have
-# no deps; fzf key bindings (Ctrl-R/-T, Alt-C) are added only when fzf exists
-() {
-  local -a src=(
-    --source plugins/sudo/sudo.plugin.zsh
-    --source plugins/colored-man-pages/colored-man-pages.plugin.zsh
-    --source plugins/copypath/copypath.plugin.zsh
-    --source plugins/copyfile/copyfile.plugin.zsh
-    --source plugins/copybuffer/copybuffer.plugin.zsh
-    --source plugins/dirhistory/dirhistory.plugin.zsh
-  )
-  (( ${+commands[fzf]} )) && src+=(--source plugins/fzf/fzf.plugin.zsh)
-  zmodule ohmyzsh/ohmyzsh "${src[@]}"
-}
+# Local switch file (git-ignored, written by install.sh plugin subtasks).
+# It may append to omz_sources and/or declare standalone modules. It must be
+# sourced before the ohmyzsh zmodule call so its appends take effect.
+[[ -e "${HOME}/.zimrc.local" ]] && source "${HOME}/.zimrc.local"
+
+zmodule ohmyzsh/ohmyzsh "${omz_sources[@]}"

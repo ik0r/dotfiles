@@ -358,8 +358,16 @@ You can do a specific task by run
 
     This task will install [`zimfw`](https://github.com/zimfw/zimfw) for you.
 
-    If you have your own configs, put them in `~/.zimrc.local`, zsh will load
-    them automatically.
+    The generated `~/.zimrc` is left as zimfw ships it (so it keeps tracking
+    upstream). A single `source` line is appended to it that loads the
+    version-controlled `zsh/zimfw/.zimrc.common`, which declares the shared,
+    no-dependency modules and then sources `~/.zimrc.local`.
+
+    `~/.zimrc.local` is a git-ignored, per-machine switch file. The
+    `zsh_zim_plugins_*` tasks below write their enable lines into it, so a
+    plugin is only active on a machine where you actually ran its task — even
+    if the underlying tool is installed for other reasons. Put any other
+    personal config there too.
 
 - ### Task `zsh_zim_plugins_fzf`
     Requirement(s): `git`, `zsh`, `curl`
