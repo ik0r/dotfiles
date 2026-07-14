@@ -697,9 +697,9 @@ function install_zsh_zim(){
 
   # Keep the generated ~/.zimrc as-is (so it tracks zimfw's template) and pull
   # our version-controlled modules in via a single source line.
-  local zimrc_local="$APP_PATH/zsh/zimfw/.zimrc.local"
-  if ! grep -qF "$zimrc_local" "$HOME/.zimrc" &>/dev/null ; then
-    echo "[[ -e \"$zimrc_local\" ]] && source \"$zimrc_local\"" >> "$HOME/.zimrc"
+  local zimrc_common="$APP_PATH/zsh/zimfw/.zimrc.common"
+  if ! grep -qF "$zimrc_common" "$HOME/.zimrc" &>/dev/null ; then
+    echo "[[ -e \"$zimrc_common\" ]] && source \"$zimrc_common\"" >> "$HOME/.zimrc"
   fi;
 
   success "Successfully installed zim."
