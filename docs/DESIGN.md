@@ -130,8 +130,8 @@ nvm、cargo、各类下载镜像。omz 和 zim 用户都要，和「用哪套框
 
 **为什么挂在 `~/.zshenv` 而不是 `~/.zshrc` / `.zimrc.common`**：
 
-- **加载顺序**：zsh 启动时 `~/.zshenv` 早于 `~/.zshrc`。omz 的 `.zshrc` 用
-  `is_program_exists git/tmux/lua` 来决定启用哪些插件（见 `zsh/omz/.zshrc`），
+- **加载顺序**：zsh 启动时 `~/.zshenv` 早于 `~/.zshrc`。omz 的 `.omzrc.common` 用
+  `is_program_exists git/tmux/lua` 来决定启用哪些插件（见 `zsh/omz/.omzrc.common`），
   这些判断依赖 `brew shellenv` 已经把 brew 的 bin 加进 `PATH`。所以 env 必须在
   框架 rc **之前**跑完，`~/.zshenv` 正是这个时机。
 - **框架中立**：挂在 `~/.zshenv` 而非某套框架的 rc，omz / zim 两条路径都能吃到同一份
@@ -139,10 +139,38 @@ nvm、cargo、各类下载镜像。omz 和 zim 用户都要，和「用哪套框
 - **幂等接线**：`install_zsh_common` 只往 `~/.zshenv` **幂等追加一行** source 语句
   （`grep -qF` 去重），和 `install_zsh_zim` 往 `~/.zimrc` 追加 source 的手法一致。
 
-**命名约定**：`.zshrc.common` 里的 `.common` 与 `.zimrc.common` 对齐——都是版本管理的
-共享底座；对应的按机器覆盖仍走 `~/.zshrc.local`（omz）/ `~/.zimrc.local`（zim）。
+**命名约定**：`zsh/.zshrc.common` 里的 `.zshrc` = **zsh 框架无关**的共享 env；各框架自己的
+共享底座 / 按机器开关则用带框架名的后缀，两两对应：omz 走 `.omzrc.common`（追踪）/
+`~/.omzrc.local`（忽略），zim 走 `.zimrc.common`（追踪）/ `~/.zimrc.local`（忽略）。
+`.common` 一律是版本管理的共享底座，`.local` 一律是未追踪、按机器覆盖。
 
-## 10. 刻意并存 oh-my-zsh 和 zimfw 两套 zsh 任务
+## 10. oh-my-zsh 也用「官方模板 + 注入」，但 plugins 数组必须在 init 前
+
+和 zimfw 一样，omz 的 `~/.zshrc` 直接用**官方模板**（`templates/zshrc.zsh-template`，
+`install_zsh_omz` 从 clone 里 `cp` 一份），保持原样跟随上游，再往里**幂等注入** source 行。
+不再维护一份 fork 的 `zsh/omz/.zshrc`（已删除）。
+
+加载链：`~/.zshrc`（官方模板）→ 注入两处 source：
+
+- **pre-init**：`source zsh/omz/.omzrc.common`（追踪）——设 `PATH`、定义 helper、按依赖
+  是否存在**构建 `plugins` 数组**。
+- **post-init**：`source ~/.omzrc.local`（git-ignored、按机器）——个人配置，含 prompt。
+
+**与 zimfw 的关键差异（决定了注入位置）**：zimfw 只在 `zimfw build` 时读 `~/.zimrc`，所以
+`zmodule` 行放文件哪里都行；而 **oh-my-zsh 没有独立 build 步骤**，`source $ZSH/oh-my-zsh.sh`
+在运行时就地读 `plugins` 数组。因此 `.omzrc.common` 必须注入在 `source $ZSH/oh-my-zsh.sh`
+**之前**——用 `awk` 匹配该行并在其前插入，而非简单末尾追加。`~/.omzrc.local` 则追加到末尾
+（prompt 用 `$fg_bold`、依赖 omz 已加载的 `$PROMPT`，本就该 init 后跑）。
+
+两处注入都靠 `grep -qF` 去重，可反复跑。官方模板里的 `plugins=(git)` 会被 `.omzrc.common`
+里的 `plugins=(...)` **整体重置**，不受影响。
+
+**命名约定修正**：旧版把 omz 的开关文件叫 `zsh/omz/.zshrc.local`（**被追踪**的 prompt 文件），
+还被 `zsh_omz_cfg` 软链成 `~/.zshrc.local`——`.local` 却进了版本管理、且和框架无关的
+`.zshrc*` 命名撞车，违反约定。现在改名对齐 zimfw：追踪底座叫 `.omzrc.common`，prompt 由
+`zsh_omz_cfg` **幂等写入** git-ignored 的 `~/.omzrc.local`，语义归位（见第 9 节命名表）。
+
+## 11. 刻意并存 oh-my-zsh 和 zimfw 两套 zsh 任务
 
 `install.sh` 同时保留 `zsh_omz_*` 和 `zsh_zim_*` 两组任务，**是有意为之，不是没清理干净**。
 

@@ -586,8 +586,31 @@ function install_zsh_omz(){
 
   lnif "$APP_PATH/zsh/.cache/ohmyzsh" \
        "$HOME/.oh-my-zsh"
-  lnif "$APP_PATH/zsh/omz/.zshrc" \
-       "$HOME/.zshrc"
+
+  # Install ~/.zshrc from oh-my-zsh's official template (kept as-is so it keeps
+  # tracking upstream), then inject our source lines idempotently. Unlike zimfw
+  # (which reads ~/.zimrc only at build time), oh-my-zsh reads the `plugins`
+  # array at init time, so the pre-init line must go BEFORE the oh-my-zsh.sh
+  # source. Post-init, per-machine config is sourced at the end.
+  local omz_template="$APP_PATH/zsh/.cache/ohmyzsh/templates/zshrc.zsh-template"
+  local zshrc="$HOME/.zshrc"
+  if ( ! is_file_exists "$zshrc" ); then
+    rm -f "$zshrc" # drop a dangling symlink from a previous install, if any
+    cp "$omz_template" "$zshrc"
+  fi;
+
+  # pre-init: version-controlled shared base (PATH + conditional plugins array)
+  local omzrc_common="$APP_PATH/zsh/omz/.omzrc.common"
+  if ! grep -qF "$omzrc_common" "$zshrc" &>/dev/null ; then
+    local inject="[[ -e \"$omzrc_common\" ]] && source \"$omzrc_common\""
+    awk -v line="$inject" '$0=="source $ZSH/oh-my-zsh.sh"{print line} {print}' \
+      "$zshrc" > "$zshrc.tmp" && mv "$zshrc.tmp" "$zshrc"
+  fi;
+
+  # post-init: per-machine switch file (git-ignored)
+  if ! grep -qF '$HOME/.omzrc.local' "$zshrc" &>/dev/null ; then
+    echo '[[ -e "$HOME/.omzrc.local" ]] && source "$HOME/.omzrc.local"' >> "$zshrc"
+  fi;
 
   # borrowed from oh-my-zsh install script
   # If this user's login shell is not already "zsh", attempt to switch.
@@ -605,7 +628,7 @@ function install_zsh_omz(){
   fi
 
   success "Successfully installed zsh and oh-my-zsh."
-  tip "You can add your own configs to ~/.zshrc.local , zsh will source them automatically"
+  tip "You can add your own configs to ~/.omzrc.local , zsh will source them automatically"
 
   success "Please open a new zsh terminal to make configs go into effect."
 }
@@ -616,8 +639,19 @@ function install_zsh_omz_cfg(){
 
   step "Installing omz configs ..."
 
-  lnif "$APP_PATH/zsh/omz/.zshrc.local" \
-       "$HOME/.zshrc.local"
+  # Seed the per-machine switch file (git-ignored) with a user-in-prompt tweak.
+  # Idempotent: only append if this block isn't already there.
+  local switch_file="$HOME/.omzrc.local"
+  if ! grep -qF 'show current user name' "$switch_file" &>/dev/null ; then
+    cat >> "$switch_file" <<'EOF'
+# If you are in various user mode, use this PROMPT show current user name
+if [ `uname` = "Darwin" ]; then
+  export PROMPT="%{$fg_bold[red]%}($(whoami)) ${PROMPT}"
+else
+  export PROMPT="%{$fg_bold[red]%}($(whoami)@$(hostname)) ${PROMPT}"
+fi;
+EOF
+  fi;
 
   success "Successfully installed omz configs"
   success "Please open a new zsh terminal to make configs go into effect."

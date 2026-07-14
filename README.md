@@ -313,8 +313,16 @@ You can do a specific task by run
 
     This task will install [`oh-my-zsh`](https://github.com/robbyrussell/oh-my-zsh) for you.
 
-    If you have your own configs, put them in `~/.zshrc.local`, zsh will load
-    them automatically.
+    The generated `~/.zshrc` is oh-my-zsh's official template, left as-is (so it
+    keeps tracking upstream). Two `source` lines are injected into it:
+
+    1. Before `source $ZSH/oh-my-zsh.sh`: the version-controlled
+       [`zsh/omz/.omzrc.common`](zsh/omz/.omzrc.common), which sets `PATH` and
+       builds the conditional `plugins` array (a plugin is only enabled when its
+       dependency is present). It must load pre-init because oh-my-zsh reads the
+       `plugins` array at init time — unlike zimfw, it has no separate build step.
+    2. At the end: `~/.omzrc.local`, a git-ignored, per-machine file for your own
+       config. Put anything personal there; zsh sources it after oh-my-zsh.
 
     **What zsh plugins are used?**
 
@@ -345,8 +353,9 @@ You can do a specific task by run
 - ### Task `zsh_omz_cfg`
     Requirement(s): `zsh`, [task zsh_omz](#task-zsh_omz)
 
-    Symlink the shipped `~/.zshrc.local` extra config. zsh sources it
-    automatically after oh-my-zsh.
+    Seed `~/.omzrc.local` (the git-ignored, per-machine file) with a prompt
+    tweak that shows the current user (and host, off macOS). Idempotent, and
+    since it lives in `~/.omzrc.local` you can freely edit or remove it.
 
 - ### Task `zsh_omz_plugins_fzf`
     Requirement(s): `git`, `zsh`, [task zsh_omz](#task-zsh_omz)

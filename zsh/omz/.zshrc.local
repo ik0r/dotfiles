@@ -1,6 +1,0 @@
-# If you are in various user mode, use this PROMPT show current user name
-if [ `uname` = "Darwin" ]; then
-  export PROMPT="%{$fg_bold[red]%}($(whoami)) ${PROMPT}"
-else
-  export PROMPT="%{$fg_bold[red]%}($(whoami)@$(hostname)) ${PROMPT}"
-fi;

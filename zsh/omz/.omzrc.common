@@ -1,0 +1,122 @@
+# Shared oh-my-zsh pre-init config (single source of truth, version-controlled).
+# Sourced from ~/.zshrc (official template) BEFORE `source $ZSH/oh-my-zsh.sh`,
+# because oh-my-zsh reads the `plugins` array at init time (it has no separate
+# build step like zimfw). Post-init, per-machine config lives in ~/.omzrc.local.
+
+export PATH=$HOME/bin:/usr/local/sbin:/usr/local/bin:$PATH
+
+function is_program_exists(){
+  if type "$1" &>/dev/null; then
+    return 0
+  else
+    return 1
+  fi;
+}
+
+function is_custom_plugin_exists(){
+  local plugin=$1
+  if [ -d $ZSH/custom/plugins/$plugin ] && [ -e $ZSH/custom/plugins/$plugin/$plugin.plugin.zsh ]; then
+    return 0
+  else
+    return 1
+  fi;
+}
+
+# Reset the array (the official template seeds `plugins=(git)`); we build the
+# full list here so a plugin is enabled only when its dependency is present.
+plugins=(
+  colored-man-pages
+  encode64
+  extract
+  sudo
+  zsh_reload
+  zsh-syntax-highlighting
+  history-substring-search # put after zsh-syntax-highlighting
+)
+
+# only init zsh-autosuggestions when we not in emacs terms, because terms in
+# emacs will not render zsh-autosuggestions gray color correctyly
+if [[ "$INSIDE_EMACS" == "" ]]; then
+  plugins=(
+    $plugins
+    zsh-autosuggestions
+  )
+fi;
+
+# add z plugin for directory jumping
+plugins=(
+  $plugins
+  z
+)
+
+if [ -d "$FZF_BASE" ]; then
+  plugins=(
+    $plugins
+    fzf
+  )
+fi;
+
+# if we have git installed, add git plugin
+if ( is_program_exists git ); then
+  plugins=(
+    $plugins
+    git
+    gitfast
+  )
+
+  # only enable git diff-so-fancy when we have install diff-so-fancy
+  if ( is_custom_plugin_exists diff-so-fancy ); then
+    plugins=(
+      $plugins
+      diff-so-fancy
+    )
+  fi;
+
+  # only enable git-extras when we have installed git-extras
+  if ( is_program_exists git-extras ); then
+    plugins=(
+      $plugins
+      git-extras
+    )
+  fi;
+fi;
+
+# if we have httpie installed, add httpie plugin
+if ( is_program_exists http ); then
+  plugins=(
+    $plugins
+    httpie
+  )
+fi;
+
+# if we have mosh installed, add mosh plugin
+if ( is_program_exists mosh ); then
+  plugins=(
+    $plugins
+    mosh
+  )
+fi;
+
+# if we have tmux installed, add tmux plugin
+if ( is_program_exists tmux ); then
+  plugins=(
+    $plugins
+    tmux
+  )
+fi;
+
+# if we have z.lua installed, add z.lua plugin
+if ( is_custom_plugin_exists z.lua ); then
+  plugins=(
+    $plugins
+    z.lua
+  )
+fi;
+
+# if we are in osx, add osx only plugins
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  plugins=(
+    $plugins
+    osx
+  )
+fi;
