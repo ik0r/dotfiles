@@ -5,12 +5,17 @@ zmodule le0me55i/zsh-extract --source extract.plugin.zsh
 # z.lua needs the lua runtime; enable only when it's installed
 (( ${+commands[lua]} )) && zmodule skywind3000/z.lua
 
-# oh-my-zsh plugins: sudo (Esc Esc) and colored-man-pages have no deps;
-# fzf key bindings (Ctrl-R/-T, Alt-C) are added only when fzf is installed
+# oh-my-zsh plugins: sudo (Esc Esc), colored-man-pages, and clipboard/dir
+# helpers (copypath, copyfile, copybuffer=Ctrl-O, dirhistory=Alt-arrows) have
+# no deps; fzf key bindings (Ctrl-R/-T, Alt-C) are added only when fzf exists
 () {
   local -a src=(
     --source plugins/sudo/sudo.plugin.zsh
     --source plugins/colored-man-pages/colored-man-pages.plugin.zsh
+    --source plugins/copypath/copypath.plugin.zsh
+    --source plugins/copyfile/copyfile.plugin.zsh
+    --source plugins/copybuffer/copybuffer.plugin.zsh
+    --source plugins/dirhistory/dirhistory.plugin.zsh
   )
   (( ${+commands[fzf]} )) && src+=(--source plugins/fzf/fzf.plugin.zsh)
   zmodule ohmyzsh/ohmyzsh "${src[@]}"
