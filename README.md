@@ -314,48 +314,50 @@ You can do a specific task by run
     This task will install [`oh-my-zsh`](https://github.com/robbyrussell/oh-my-zsh) for you.
 
     The generated `~/.zshrc` is oh-my-zsh's official template, left as-is (so it
-    keeps tracking upstream). Two `source` lines are injected into it:
+    keeps tracking upstream), with one `source` line injected before
+    `source $ZSH/oh-my-zsh.sh`: the version-controlled
+    [`zsh/omz/.omzrc.common`](zsh/omz/.omzrc.common). It sets `PATH`, declares the
+    core no-dependency plugins, and in turn sources `~/.omzrc.local`. All of this
+    must run pre-init because oh-my-zsh reads the `plugins` array at init time —
+    unlike zimfw, it has no separate build step.
 
-    1. Before `source $ZSH/oh-my-zsh.sh`: the version-controlled
-       [`zsh/omz/.omzrc.common`](zsh/omz/.omzrc.common), which sets `PATH` and
-       builds the conditional `plugins` array (a plugin is only enabled when its
-       dependency is present). It must load pre-init because oh-my-zsh reads the
-       `plugins` array at init time — unlike zimfw, it has no separate build step.
-    2. At the end: `~/.omzrc.local`, a git-ignored, per-machine file for your own
-       config. Put anything personal there; zsh sources it after oh-my-zsh.
+    `~/.omzrc.local` is a git-ignored, per-machine **opt-in switch file**. The
+    `zsh_omz_plugins_*` tasks below append `plugins+=(...)` lines to it, so a
+    plugin (fzf, diff-so-fancy, z.lua) is enabled only on a machine where you
+    actually ran its task — not merely because the underlying tool happens to be
+    installed. This mirrors zimfw's `~/.zimrc.local`.
 
     **What zsh plugins are used?**
 
     | plugin                   | require                                               | note                                           |
     |--------------------------|-------------------------------------------------------|------------------------------------------------|
-    | colored-man-pages        |                                                       |                                                |
-    | encode64                 |                                                       |                                                |
-    | extract                  |                                                       |                                                |
-    | fzf                      | [task zsh_omz_plugins_fzf](#task-zsh_omz_plugins_fzf) |                                                |
-    | sudo                     |                                                       |                                                |
-    | zsh_reload               |                                                       |                                                |
-    | zsh-syntax-highlighting  |                                                       |                                                |
-    | history-substring-search |                                                       |                                                |
+    | colored-man-pages        |                                                       | core, always on                                |
+    | encode64                 |                                                       | core, always on                                |
+    | extract                  |                                                       | core, always on                                |
+    | fzf                      | [task zsh_omz_plugins_fzf](#task-zsh_omz_plugins_fzf) | opt-in (switch file)                           |
+    | sudo                     |                                                       | core, always on                                |
+    | zsh_reload               |                                                       | core, always on                                |
+    | zsh-syntax-highlighting  |                                                       | core, always on                                |
+    | history-substring-search |                                                       | core, always on                                |
     | zsh-autosuggestions      |                                                       | disabled in Emacs eshell. **TIP**: If your auto suggestion's color is same with your normal command's color, please make sure you `$TERM` support 256 color! |
     | z                        |                                                       | directory jumping                              |
-    | git                      | git                                                   |                                                |
-    | gitfast                  | git                                                   |                                                |
-    | diff-so-fancy            | [task zsh_omz_plugins_git_diff_so_fancy](#task-zsh_omz_plugins_git_diff_so_fancy)|                     |
-    | git-extras               | [task git_extras](#task-git_extras)                   |                                                |
-    | httpie                   | httpie                                                |                                                |
-    | mosh                     | mosh                                                  |                                                |
-    | tmux                     | tmux                                                  |                                                |
-    | z.lua                    | [task zsh_omz_plugins_zlua](#task-zsh_omz_plugins_zlua)|                                                |
-    | osx                      | OS X                                                  |                                                |
+    | git                      | git                                                   | auto (enabled when git present)                |
+    | gitfast                  | git                                                   | auto (enabled when git present)                |
+    | diff-so-fancy            | [task zsh_omz_plugins_git_diff_so_fancy](#task-zsh_omz_plugins_git_diff_so_fancy)| opt-in (switch file)      |
+    | git-extras               | [task git_extras](#task-git_extras)                   | auto (enabled when git-extras present)         |
+    | tmux                     | tmux                                                  | auto (enabled when tmux present)               |
+    | z.lua                    | [task zsh_omz_plugins_zlua](#task-zsh_omz_plugins_zlua)| opt-in (switch file)                          |
+    | osx                      | OS X                                                  | auto (enabled on macOS)                        |
 
     So, maybe you should install some of them to make full use of zsh.
 
 - ### Task `zsh_omz_cfg`
     Requirement(s): `zsh`, [task zsh_omz](#task-zsh_omz)
 
-    Seed `~/.omzrc.local` (the git-ignored, per-machine file) with a prompt
-    tweak that shows the current user (and host, off macOS). Idempotent, and
-    since it lives in `~/.omzrc.local` you can freely edit or remove it.
+    Append a prompt tweak (shows the current user, and host off macOS) to the end
+    of `~/.zshrc`. It runs post-init because the prompt relies on `$fg_bold` and
+    the `$PROMPT` set up by oh-my-zsh, so it can't live in the pre-init
+    `~/.omzrc.local`. Idempotent; edit or remove the block in `~/.zshrc` freely.
 
 - ### Task `zsh_omz_plugins_fzf`
     Requirement(s): `git`, `zsh`, [task zsh_omz](#task-zsh_omz)

@@ -150,27 +150,76 @@ nvm、cargo、各类下载镜像。omz 和 zim 用户都要，和「用哪套框
 `install_zsh_omz` 从 clone 里 `cp` 一份），保持原样跟随上游，再往里**幂等注入** source 行。
 不再维护一份 fork 的 `zsh/omz/.zshrc`（已删除）。
 
-加载链：`~/.zshrc`（官方模板）→ 注入两处 source：
+加载链：`~/.zshrc`（官方模板）→ 注入一处 source（`.omzrc.common` 再内部 source 开关文件）：
 
-- **pre-init**：`source zsh/omz/.omzrc.common`（追踪）——设 `PATH`、定义 helper、按依赖
-  是否存在**构建 `plugins` 数组**。
-- **post-init**：`source ~/.omzrc.local`（git-ignored、按机器）——个人配置，含 prompt。
+- **pre-init**：`source zsh/omz/.omzrc.common`（追踪）——设 `PATH`、定义 helper、声明
+  **核心零依赖插件**（`plugins=(...)`），并在末尾 `source ~/.omzrc.local`。
+- **post-init**：prompt 定制由 `zsh_omz_cfg` 追加到 `~/.zshrc` **末尾**（在 `source
+  $ZSH/oh-my-zsh.sh` 之后），因为它依赖 omz 加载后的 `$fg_bold` / `$PROMPT`。
 
 **与 zimfw 的关键差异（决定了注入位置）**：zimfw 只在 `zimfw build` 时读 `~/.zimrc`，所以
 `zmodule` 行放文件哪里都行；而 **oh-my-zsh 没有独立 build 步骤**，`source $ZSH/oh-my-zsh.sh`
-在运行时就地读 `plugins` 数组。因此 `.omzrc.common` 必须注入在 `source $ZSH/oh-my-zsh.sh`
-**之前**——用 `awk` 匹配该行并在其前插入，而非简单末尾追加。`~/.omzrc.local` 则追加到末尾
-（prompt 用 `$fg_bold`、依赖 omz 已加载的 `$PROMPT`，本就该 init 后跑）。
+在运行时就地读 `plugins` 数组。因此 `.omzrc.common`（及它 source 的 `~/.omzrc.local`）必须
+在 `source $ZSH/oh-my-zsh.sh` **之前**跑完——用 `awk` 匹配该行并在其前插入注入，而非简单末尾追加。
 
-两处注入都靠 `grep -qF` 去重，可反复跑。官方模板里的 `plugins=(git)` 会被 `.omzrc.common`
+注入靠 `grep -qF` 去重，可反复跑。官方模板里的 `plugins=(git)` 会被 `.omzrc.common`
 里的 `plugins=(...)` **整体重置**，不受影响。
 
-**命名约定修正**：旧版把 omz 的开关文件叫 `zsh/omz/.zshrc.local`（**被追踪**的 prompt 文件），
-还被 `zsh_omz_cfg` 软链成 `~/.zshrc.local`——`.local` 却进了版本管理、且和框架无关的
-`.zshrc*` 命名撞车，违反约定。现在改名对齐 zimfw：追踪底座叫 `.omzrc.common`，prompt 由
-`zsh_omz_cfg` **幂等写入** git-ignored 的 `~/.omzrc.local`，语义归位（见第 9 节命名表）。
+## 11. omz 的插件启用也做成「开关式」opt-in（对齐第 5 节 zimfw）
 
-## 11. 刻意并存 oh-my-zsh 和 zimfw 两套 zsh 任务
+第 5 节定下的诉求——**跑了子任务才启用，而非工具存在就启用**——现在 omz 也照做了，分层与
+zimfw 一一对应：
+
+| | zimfw | oh-my-zsh |
+|---|---|---|
+| 追踪底座（总是启用） | `.zimrc.common` 里的 `zmodule` | `.omzrc.common` 里的 `plugins=(...)` |
+| 累积变量 | `omz_sources` 数组 | `plugins` 数组 |
+| 按机器开关（git-ignored） | `~/.zimrc.local` | `~/.omzrc.local` |
+| 开关追加写法 | `zmodule ...` / `omz_sources+=(...)` | `plugins+=(...)` |
+| 追加辅助函数 | `util_zimrc_local_append` | `util_omzrc_local_append` |
+
+- **核心零依赖插件**（colored-man-pages / extract / sudo / zsh-syntax-highlighting 等）
+  无条件写在 `.omzrc.common`，是「总是想要」的底座。
+- **可选插件** fzf / diff-so-fancy / z.lua 改为 opt-in：`zsh_omz_plugins_*` 子任务通过
+  `util_omzrc_local_append` 往 `~/.omzrc.local` 写 `plugins+=(...)`，没跑子任务就不启用——
+  **即便该工具因别的原因已装在机器上**。
+- **例外（有意保留自动探测）**：git/gitfast/git-extras、tmux 仍按
+  `is_program_exists` 存在即启用；osx 按平台判断。这些要么几乎必用、要么零安装成本，作为
+  底座的一部分更省事，不强制 opt-in。
+
+**为什么 omz 之前不是 opt-in**：旧版 `.omzrc.common` 对 fzf/diff-so-fancy/z.lua 也用
+`is_program_exists` / `is_custom_plugin_exists` 探测，「装了就启用」，和第 5 节诉求相悖。
+本次把这三块探测删掉，改成读 `~/.omzrc.local` 的开关。
+
+**命名 / 出口修正**：旧版把 omz 的 `~/.omzrc.local` 当「个人配置 + prompt」的 post-init 文件
+（更早还错叫过被追踪的 `zsh/omz/.zshrc.local`）。现在 `~/.omzrc.local` 语义收敛为**纯 pre-init
+插件开关**（对齐 `~/.zimrc.local`）；prompt 这类 post-init 配置改追加到 `~/.zshrc` 末尾。个人
+其它 post-init 配置也放 `~/.zshrc` 末尾即可。
+
+**⚠️ `cp` 前的 `rm -f` 不是多余（专治悬空软链）**：`install_zsh_omz` 里这段常被误读——
+「都判断文件不存在了，为什么还 `rm -f`」：
+
+```sh
+if ( ! is_file_exists "$zshrc" ); then   # is_file_exists 用 [[ -e ]]
+  rm -f "$zshrc" # drop a dangling symlink from a previous install, if any
+  cp "$omz_template" "$zshrc"
+fi;
+```
+
+关键在**旧版**：更早的 `install_zsh_omz` 用 `lnif` 把 `~/.zshrc` 软链到 fork 的
+`zsh/omz/.zshrc`；后来重构把该 fork **删了**。于是跑过旧版的机器上，`~/.zshrc` 是一条指向
+已删除文件的**悬空软链**。
+
+- `[[ -e ]]` 检查的是软链**指向的目标**，目标已删 → 返回**假** → `! is_file_exists` 为真，
+  进入 if 分支（实测：悬空软链 `[[ -e ]]`=false 而 `[[ -L ]]`=true）。
+- 此时若**不** `rm` 直接 `cp`，`cp` 会**跟随软链**把内容写到那个「不存在的目标」路径上，
+  凭空造出目标文件，而 `~/.zshrc` 本身仍是坏软链——安装等于没生效（实测复现）。
+- 所以先 `rm -f` 摘掉坏软链，再 `cp` 出一个真正的 regular file。
+
+三种情况一并覆盖：真实文件已存在 → 跳过、不覆盖用户配置；悬空软链（旧装遗留）→ 清掉再 cp；
+完全不存在 → `rm -f` 空操作后 cp。
+
+## 12. 刻意并存 oh-my-zsh 和 zimfw 两套 zsh 任务
 
 `install.sh` 同时保留 `zsh_omz_*` 和 `zsh_zim_*` 两组任务，**是有意为之，不是没清理干净**。
 

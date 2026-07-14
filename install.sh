@@ -590,26 +590,25 @@ function install_zsh_omz(){
   # Install ~/.zshrc from oh-my-zsh's official template (kept as-is so it keeps
   # tracking upstream), then inject our source lines idempotently. Unlike zimfw
   # (which reads ~/.zimrc only at build time), oh-my-zsh reads the `plugins`
-  # array at init time, so the pre-init line must go BEFORE the oh-my-zsh.sh
-  # source. Post-init, per-machine config is sourced at the end.
+  # array at init time, so .omzrc.common must be sourced BEFORE oh-my-zsh.sh.
+  # It in turn sources ~/.omzrc.local (the opt-in switch file) internally.
   local omz_template="$APP_PATH/zsh/.cache/ohmyzsh/templates/zshrc.zsh-template"
   local zshrc="$HOME/.zshrc"
   if ( ! is_file_exists "$zshrc" ); then
-    rm -f "$zshrc" # drop a dangling symlink from a previous install, if any
+    # ! is_file_exists is true for a dangling symlink too (old installs linked
+    # ~/.zshrc to the now-deleted fork). rm it first, else cp follows the broken
+    # link and writes to its missing target. See docs/DESIGN.md section 10.
+    rm -f "$zshrc"
     cp "$omz_template" "$zshrc"
   fi;
 
-  # pre-init: version-controlled shared base (PATH + conditional plugins array)
+  # pre-init: version-controlled shared base (PATH + plugins array + opt-in
+  # switch). Injected before `source $ZSH/oh-my-zsh.sh` so `plugins` is ready.
   local omzrc_common="$APP_PATH/zsh/omz/.omzrc.common"
   if ! grep -qF "$omzrc_common" "$zshrc" &>/dev/null ; then
     local inject="[[ -e \"$omzrc_common\" ]] && source \"$omzrc_common\""
     awk -v line="$inject" '$0=="source $ZSH/oh-my-zsh.sh"{print line} {print}' \
       "$zshrc" > "$zshrc.tmp" && mv "$zshrc.tmp" "$zshrc"
-  fi;
-
-  # post-init: per-machine switch file (git-ignored)
-  if ! grep -qF '$HOME/.omzrc.local' "$zshrc" &>/dev/null ; then
-    echo '[[ -e "$HOME/.omzrc.local" ]] && source "$HOME/.omzrc.local"' >> "$zshrc"
   fi;
 
   # borrowed from oh-my-zsh install script
@@ -628,9 +627,20 @@ function install_zsh_omz(){
   fi
 
   success "Successfully installed zsh and oh-my-zsh."
-  tip "You can add your own configs to ~/.omzrc.local , zsh will source them automatically"
+  tip "~/.omzrc.local is the opt-in plugin switch file; run zsh_omz_plugins_* to fill it. Put personal config at the end of ~/.zshrc."
 
   success "Please open a new zsh terminal to make configs go into effect."
+}
+
+function util_omzrc_local_append(){
+  # Idempotently append a line to the git-ignored oh-my-zsh switch file. Mirrors
+  # util_zimrc_local_append; ~/.omzrc.local is sourced by .omzrc.common pre-init,
+  # so plugin subtasks append `plugins+=(...)` here.
+  local line="$1"
+  local switch_file="$HOME/.omzrc.local"
+  if ! grep -qF "$line" "$switch_file" &>/dev/null ; then
+    echo "$line" >> "$switch_file"
+  fi;
 }
 
 function install_zsh_omz_cfg(){
@@ -639,11 +649,14 @@ function install_zsh_omz_cfg(){
 
   step "Installing omz configs ..."
 
-  # Seed the per-machine switch file (git-ignored) with a user-in-prompt tweak.
+  # Append a user-in-prompt tweak to ~/.zshrc. The prompt uses $fg_bold and the
+  # existing $PROMPT, both set up by oh-my-zsh, so it must run POST-init — hence
+  # ~/.zshrc (after `source $ZSH/oh-my-zsh.sh`), not the pre-init ~/.omzrc.local.
   # Idempotent: only append if this block isn't already there.
-  local switch_file="$HOME/.omzrc.local"
-  if ! grep -qF 'show current user name' "$switch_file" &>/dev/null ; then
-    cat >> "$switch_file" <<'EOF'
+  local zshrc="$HOME/.zshrc"
+  if ! grep -qF 'show current user name' "$zshrc" &>/dev/null ; then
+    cat >> "$zshrc" <<'EOF'
+
 # If you are in various user mode, use this PROMPT show current user name
 if [ `uname` = "Darwin" ]; then
   export PROMPT="%{$fg_bold[red]%}($(whoami)) ${PROMPT}"
@@ -674,6 +687,8 @@ function install_zsh_omz_plugins_git_diff_so_fancy(){
   lnif "$APP_PATH/.cache/diff-so-fancy" \
        "$APP_PATH/zsh/.cache/ohmyzsh/custom/plugins/diff-so-fancy"
 
+  util_omzrc_local_append 'plugins+=(diff-so-fancy)'
+
   success "Successfully installed git diff-so-fancy for oh-my-zsh."
 }
 
@@ -690,6 +705,8 @@ function install_zsh_omz_plugins_fzf(){
     echo "export FZF_BASE=\"$APP_PATH/zsh/.cache/fzf\"" >> "$HOME/.zshenv"
   fi;
 
+  util_omzrc_local_append 'plugins+=(fzf)'
+
   success "Successfully installed fzf plugin."
 }
 
@@ -704,6 +721,8 @@ function install_zsh_omz_plugins_zlua(){
 
   lnif "$APP_PATH/zsh/.cache/z.lua" \
        "$APP_PATH/zsh/.cache/ohmyzsh/custom/plugins/z.lua"
+
+  util_omzrc_local_append 'plugins+=(z.lua)'
 
   success "Successfully installed z.lua for oh-my-zsh."
 }

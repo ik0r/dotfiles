@@ -1,7 +1,8 @@
 # Shared oh-my-zsh pre-init config (single source of truth, version-controlled).
 # Sourced from ~/.zshrc (official template) BEFORE `source $ZSH/oh-my-zsh.sh`,
 # because oh-my-zsh reads the `plugins` array at init time (it has no separate
-# build step like zimfw). Post-init, per-machine config lives in ~/.omzrc.local.
+# build step like zimfw). Post-init, per-machine config lives in ~/.zshrc itself
+# (see the prompt block appended by zsh_omz_cfg).
 
 export PATH=$HOME/bin:/usr/local/sbin:/usr/local/bin:$PATH
 
@@ -13,17 +14,8 @@ function is_program_exists(){
   fi;
 }
 
-function is_custom_plugin_exists(){
-  local plugin=$1
-  if [ -d $ZSH/custom/plugins/$plugin ] && [ -e $ZSH/custom/plugins/$plugin/$plugin.plugin.zsh ]; then
-    return 0
-  else
-    return 1
-  fi;
-}
-
-# Reset the array (the official template seeds `plugins=(git)`); we build the
-# full list here so a plugin is enabled only when its dependency is present.
+# Core, no-dependency plugins: always enabled (the "always want" base, mirroring
+# zimfw's .zimrc.common). Optional plugins are opt-in via ~/.omzrc.local below.
 plugins=(
   colored-man-pages
   encode64
@@ -49,13 +41,6 @@ plugins=(
   z
 )
 
-if [ -d "$FZF_BASE" ]; then
-  plugins=(
-    $plugins
-    fzf
-  )
-fi;
-
 # if we have git installed, add git plugin
 if ( is_program_exists git ); then
   plugins=(
@@ -63,14 +48,6 @@ if ( is_program_exists git ); then
     git
     gitfast
   )
-
-  # only enable git diff-so-fancy when we have install diff-so-fancy
-  if ( is_custom_plugin_exists diff-so-fancy ); then
-    plugins=(
-      $plugins
-      diff-so-fancy
-    )
-  fi;
 
   # only enable git-extras when we have installed git-extras
   if ( is_program_exists git-extras ); then
@@ -81,35 +58,11 @@ if ( is_program_exists git ); then
   fi;
 fi;
 
-# if we have httpie installed, add httpie plugin
-if ( is_program_exists http ); then
-  plugins=(
-    $plugins
-    httpie
-  )
-fi;
-
-# if we have mosh installed, add mosh plugin
-if ( is_program_exists mosh ); then
-  plugins=(
-    $plugins
-    mosh
-  )
-fi;
-
 # if we have tmux installed, add tmux plugin
 if ( is_program_exists tmux ); then
   plugins=(
     $plugins
     tmux
-  )
-fi;
-
-# if we have z.lua installed, add z.lua plugin
-if ( is_custom_plugin_exists z.lua ); then
-  plugins=(
-    $plugins
-    z.lua
   )
 fi;
 
@@ -120,3 +73,11 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     osx
   )
 fi;
+
+# Opt-in switch file (git-ignored, written by install.sh plugin subtasks). Each
+# zsh_omz_plugins_* task appends `plugins+=(...)` here, so a plugin is enabled
+# only on a machine where you actually ran its task — even if the underlying
+# tool is installed for other reasons. This mirrors zimfw's ~/.zimrc.local, and
+# must be sourced before `source $ZSH/oh-my-zsh.sh` (this whole file is pre-init)
+# so the appended plugins take effect.
+[[ -e "${HOME}/.omzrc.local" ]] && source "${HOME}/.omzrc.local"
